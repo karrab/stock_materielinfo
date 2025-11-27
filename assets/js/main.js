@@ -1,0 +1,370 @@
+/**
+ * Gestion Stock Matériel - JavaScript Principal
+ */
+
+// Configuration globale
+const BASE_URL = window.location.origin + '/stock_materielinfo';
+
+// Formatage des nombres
+function formatNumber(num, decimals = 2) {
+    return Number(num).toLocaleString('fr-FR', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+    });
+}
+
+// Formatage des dates
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR');
+}
+
+// Confirmation de suppression
+function confirmDelete(message = 'Voulez-vous vraiment supprimer cet élément ?') {
+    return confirm(message);
+}
+
+// Affichage d'une alerte
+function showAlert(message, type = 'info') {
+    const alertDiv = $('<div>')
+        .addClass(`alert alert-${type} alert-dismissible fade show`)
+        .attr('role', 'alert')
+        .html(`
+            <i class="bi bi-${getAlertIcon(type)}"></i> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `);
+
+    $('.main-container').prepend(alertDiv);
+
+    setTimeout(() => {
+        alertDiv.fadeOut('slow', function() {
+            $(this).remove();
+        });
+    }, 5000);
+}
+
+// Icône d'alerte selon le type
+function getAlertIcon(type) {
+    const icons = {
+        'success': 'check-circle',
+        'danger': 'exclamation-triangle',
+        'warning': 'exclamation-circle',
+        'info': 'info-circle'
+    };
+    return icons[type] || 'info-circle';
+}
+
+// Loading overlay
+function showLoading() {
+    if ($('.spinner-overlay').length === 0) {
+        $('body').append(`
+            <div class="spinner-overlay">
+                <div class="spinner-border text-light" role="status" style="width: 3rem; height: 3rem;">
+                    <span class="visually-hidden">Chargement...</span>
+                </div>
+            </div>
+        `);
+    }
+}
+
+function hideLoading() {
+    $('.spinner-overlay').remove();
+}
+
+// Initialisation DataTables avec configuration par défaut
+function initDataTable(selector, options = {}) {
+    const defaultOptions = {
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/fr-FR.json'
+        },
+        pageLength: 10,
+        lengthMenu: [[10, 50, 100, -1], [10, 50, 100, "Tous"]],
+        responsive: true,
+        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+             '<"row"<"col-sm-12"tr>>' +
+             '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+        order: [[0, 'desc']], // Tri décroissant par défaut sur la première colonne
+        columnDefs: [
+            {
+                targets: 'no-sort',
+                orderable: false
+            }
+        ]
+    };
+
+    return $(selector).DataTable($.extend({}, defaultOptions, options));
+}
+
+// Initialisation Select2 pour sélection article avec recherche
+function initArticleSelect(selector, placeholder = 'Sélectionner un article...') {
+    $(selector).select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: placeholder,
+        allowClear: true,
+        ajax: {
+            url: BASE_URL + '/api/articles.php',
+            dataType: 'json',
+            delay: 250,
+            data: function(params) {
+                return {
+                    q: params.term,
+                    page: params.page || 1
+                };
+            },
+            processResults: function(data) {
+                return {
+                    results: data.items.map(item => ({
+                        id: item.id,
+                        text: `${item.code_article} - ${item.designation}`,
+                        code_article: item.code_article,
+                        designation: item.designation,
+                        qte_disponible: item.qte_disponible
+                    })),
+                    pagination: {
+                        more: data.more
+                    }
+                };
+            },
+            cache: true
+        },
+        minimumInputLength: 0,
+        templateResult: formatArticleResult,
+        templateSelection: formatArticleSelection
+    });
+}
+
+// Format résultat recherche article
+function formatArticleResult(item) {
+    if (item.loading) {
+        return item.text;
+    }
+
+    return $(`
+        <div class="select2-result-article">
+            <div class="fw-bold">${item.code_article}</div>
+            <div class="text-muted small">${item.designation}</div>
+            <div class="small"><span class="badge bg-info">Stock: ${formatNumber(item.qte_disponible)}</span></div>
+        </div>
+    `);
+}
+
+// Format sélection article
+function formatArticleSelection(item) {
+    return item.text;
+}
+
+// Initialisation Select2 pour sélection employé avec recherche
+function initEmployeSelect(selector, serviceId = null, placeholder = 'Sélectionner un employé...') {
+    $(selector).select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: placeholder,
+        allowClear: true,
+        ajax: {
+            url: BASE_URL + '/api/employes.php',
+            dataType: 'json',
+            delay: 250,
+            data: function(params) {
+                return {
+                    q: params.term,
+                    service_id: serviceId,
+                    page: params.page || 1
+                };
+            },
+            processResults: function(data) {
+                return {
+                    results: data.items.map(item => ({
+                        id: item.id,
+                        text: `${item.matricule} - ${item.nom} ${item.prenom}`,
+                        matricule: item.matricule,
+                        nom: item.nom,
+                        prenom: item.prenom,
+                        service_nom: item.service_nom
+                    })),
+                    pagination: {
+                        more: data.more
+                    }
+                };
+            },
+            cache: true
+        },
+        minimumInputLength: 0
+    });
+}
+
+// Initialisation Select2 pour sélection fournisseur avec recherche
+function initFournisseurSelect(selector, placeholder = 'Sélectionner un fournisseur...') {
+    $(selector).select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: placeholder,
+        allowClear: true,
+        ajax: {
+            url: BASE_URL + '/api/fournisseurs.php',
+            dataType: 'json',
+            delay: 250,
+            data: function(params) {
+                return {
+                    q: params.term,
+                    page: params.page || 1
+                };
+            },
+            processResults: function(data) {
+                return {
+                    results: data.items.map(item => ({
+                        id: item.id,
+                        text: item.nom_complet,
+                        ville: item.ville,
+                        tel1: item.tel1
+                    })),
+                    pagination: {
+                        more: data.more
+                    }
+                };
+            },
+            cache: true
+        },
+        minimumInputLength: 0
+    });
+}
+
+// Initialisation Select2 pour sélection service
+function initServiceSelect(selector, placeholder = 'Sélectionner un service...') {
+    $(selector).select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: placeholder,
+        allowClear: true,
+        ajax: {
+            url: BASE_URL + '/api/services.php',
+            dataType: 'json',
+            delay: 250,
+            data: function(params) {
+                return {
+                    q: params.term,
+                    page: params.page || 1
+                };
+            },
+            processResults: function(data) {
+                return {
+                    results: data.items.map(item => ({
+                        id: item.id,
+                        text: item.nom
+                    })),
+                    pagination: {
+                        more: data.more
+                    }
+                };
+            },
+            cache: true
+        },
+        minimumInputLength: 0
+    });
+}
+
+// Gestion du drag & drop pour upload de fichiers
+function initFileUploadZone(zoneSelector, inputSelector) {
+    const zone = $(zoneSelector);
+    const input = $(inputSelector);
+
+    zone.on('click', function() {
+        input.click();
+    });
+
+    zone.on('dragover', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        $(this).addClass('dragover');
+    });
+
+    zone.on('dragleave', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        $(this).removeClass('dragover');
+    });
+
+    zone.on('drop', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        $(this).removeClass('dragover');
+
+        const files = e.originalEvent.dataTransfer.files;
+        if (files.length > 0) {
+            input[0].files = files;
+            updateFileInfo(files[0]);
+        }
+    });
+
+    input.on('change', function() {
+        if (this.files.length > 0) {
+            updateFileInfo(this.files[0]);
+        }
+    });
+
+    function updateFileInfo(file) {
+        zone.find('.file-name').text(file.name);
+        zone.find('.file-size').text(formatFileSize(file.size));
+    }
+}
+
+// Formatage de la taille de fichier
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+// Validation de formulaire
+function validateForm(formId) {
+    const form = document.getElementById(formId);
+    if (!form) return false;
+
+    if (!form.checkValidity()) {
+        form.classList.add('was-validated');
+        return false;
+    }
+
+    return true;
+}
+
+// Export PDF
+function exportToPDF(url) {
+    showLoading();
+    window.location.href = url;
+    setTimeout(hideLoading, 2000);
+}
+
+// Print
+function printPage() {
+    window.print();
+}
+
+// Copier dans le presse-papier
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showAlert('Copié dans le presse-papier !', 'success');
+    }).catch(() => {
+        showAlert('Erreur lors de la copie', 'danger');
+    });
+}
+
+// Initialisation au chargement du document
+$(document).ready(function() {
+    // Activation des tooltips Bootstrap
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function(tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Activation des popovers Bootstrap
+    const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    popoverTriggerList.map(function(popoverTriggerEl) {
+        return new bootstrap.Popover(popoverTriggerEl);
+    });
+
+    // Auto-focus sur le premier champ de formulaire
+    $('form:not(.no-autofocus) input:not([type=hidden]):first').focus();
+});

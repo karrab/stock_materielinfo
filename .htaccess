@@ -1,0 +1,128 @@
+# Apache Configuration pour Stock Matériel
+
+# Protection des fichiers sensibles
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Protéger les fichiers de configuration
+<FilesMatch "(composer\.json|composer\.lock|\.env|\.gitignore)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Options
+Options -Indexes
+Options +FollowSymLinks
+
+# Redirection des erreurs
+ErrorDocument 404 /stock_materielinfo/index.php
+ErrorDocument 403 /stock_materielinfo/index.php
+ErrorDocument 500 /stock_materielinfo/index.php
+
+# Sécurité headers
+<IfModule mod_headers.c>
+    # Protection XSS
+    Header set X-XSS-Protection "1; mode=block"
+
+    # Désactiver le MIME sniffing
+    Header set X-Content-Type-Options "nosniff"
+
+    # Clickjacking protection
+    Header set X-Frame-Options "SAMEORIGIN"
+
+    # Politique de référent
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Désactiver l'affichage des informations du serveur
+    Header unset Server
+    Header unset X-Powered-By
+</IfModule>
+
+# Réécriture d'URL
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /stock_materielinfo/
+
+    # Forcer HTTPS (décommenter si SSL est configuré)
+    # RewriteCond %{HTTPS} off
+    # RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # Redirection vers index.php si fichier n'existe pas
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    # RewriteRule . /stock_materielinfo/index.php [L]
+</IfModule>
+
+# Configuration PHP (si AllowOverride All)
+<IfModule mod_php7.c>
+    php_flag display_errors Off
+    php_flag log_errors On
+    php_value error_log /var/log/php_errors.log
+    php_value upload_max_filesize 5M
+    php_value post_max_size 10M
+    php_value max_execution_time 300
+    php_value max_input_time 300
+    php_value memory_limit 256M
+</IfModule>
+
+# Cache des ressources statiques
+<IfModule mod_expires.c>
+    ExpiresActive On
+
+    # Images
+    ExpiresByType image/jpg "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+
+    # CSS et JavaScript
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType text/javascript "access plus 1 month"
+
+    # Polices
+    ExpiresByType font/woff2 "access plus 1 year"
+    ExpiresByType font/woff "access plus 1 year"
+    ExpiresByType font/ttf "access plus 1 year"
+
+    # Documents
+    ExpiresByType application/pdf "access plus 1 month"
+
+    # Par défaut
+    ExpiresDefault "access plus 1 week"
+</IfModule>
+
+# Compression GZIP
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE text/javascript
+    AddOutputFilterByType DEFLATE text/xml
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/x-javascript
+    AddOutputFilterByType DEFLATE application/json
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE application/xhtml+xml
+    AddOutputFilterByType DEFLATE application/rss+xml
+    AddOutputFilterByType DEFLATE application/atom+xml
+    AddOutputFilterByType DEFLATE image/svg+xml
+</IfModule>
+
+# Protection contre les injections
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Bloquer les tentatives d'injection SQL
+    RewriteCond %{QUERY_STRING} (\<|%3C).*script.*(\>|%3E) [NC,OR]
+    RewriteCond %{QUERY_STRING} GLOBALS(=|\[|\%[0-9A-Z]{0,2}) [OR]
+    RewriteCond %{QUERY_STRING} _REQUEST(=|\[|\%[0-9A-Z]{0,2})
+    RewriteRule ^(.*)$ - [F,L]
+
+    # Bloquer les tentatives d'accès aux fichiers sensibles
+    RewriteRule ^(config|classes|includes)/.*$ - [F,L]
+</IfModule>
