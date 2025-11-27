@@ -78,15 +78,21 @@ class Database {
     /**
      * Exécute la requête préparée
      */
-    public function execute($params = []) {
-        return $this->stmt->execute($params);
+    public function execute($params = null) {
+        // Si on a des paramètres, on les passe
+        // Sinon on exécute sans paramètres (pour les requêtes avec bind())
+        if ($params !== null && !empty($params)) {
+            return $this->stmt->execute($params);
+        } else {
+            return $this->stmt->execute();
+        }
     }
 
     /**
      * Retourne toutes les lignes
      */
     public function fetchAll() {
-        $this->execute();
+        $this->stmt->execute();
         return $this->stmt->fetchAll();
     }
 
@@ -94,7 +100,7 @@ class Database {
      * Retourne une seule ligne
      */
     public function fetch() {
-        $this->execute();
+        $this->stmt->execute();
         return $this->stmt->fetch();
     }
 
@@ -102,7 +108,7 @@ class Database {
      * Retourne une seule valeur
      */
     public function fetchColumn() {
-        $this->execute();
+        $this->stmt->execute();
         return $this->stmt->fetchColumn();
     }
 
