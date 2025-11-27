@@ -48,10 +48,13 @@ $sql = "SELECT a.*,
                 COALESCE((SELECT SUM(qte_sortie) FROM ligne_sorties WHERE article_id = a.id), 0) +
                 COALESCE((SELECT SUM(qte_retour) FROM ligne_retours WHERE article_id = a.id), 0)) as calc_disponible
         FROM articles a
-        HAVING ABS(a.qte_disponible - calc_disponible) > 0.01
-        OR ABS(a.qte_entree - calc_entree) > 0.01
-        OR ABS(a.qte_sortie - calc_sortie) > 0.01
-        OR ABS(a.qte_retour - calc_retour) > 0.01";
+        WHERE ABS(a.qte_disponible - (a.stock_initial +
+                COALESCE((SELECT SUM(qte_entree) FROM ligne_entrees WHERE article_id = a.id), 0) -
+                COALESCE((SELECT SUM(qte_sortie) FROM ligne_sorties WHERE article_id = a.id), 0) +
+                COALESCE((SELECT SUM(qte_retour) FROM ligne_retours WHERE article_id = a.id), 0))) > 0.01
+        OR ABS(a.qte_entree - COALESCE((SELECT SUM(qte_entree) FROM ligne_entrees WHERE article_id = a.id), 0)) > 0.01
+        OR ABS(a.qte_sortie - COALESCE((SELECT SUM(qte_sortie) FROM ligne_sorties WHERE article_id = a.id), 0)) > 0.01
+        OR ABS(COALESCE(a.qte_retour, 0) - COALESCE((SELECT SUM(qte_retour) FROM ligne_retours WHERE article_id = a.id), 0)) > 0.01";
 
 $db->prepare($sql);
 $articles_avec_ecarts = $db->fetchAll();
