@@ -77,19 +77,101 @@ function initDataTable(selector, options = {}) {
         language: {
             url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/fr-FR.json'
         },
-        pageLength: 10,
-        lengthMenu: [[10, 50, 100, -1], [10, 50, 100, "Tous"]],
+        pageLength: 25,
+        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Tous"]],
         responsive: true,
-        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
+
+        // State saving - sauvegarde tri, pagination, recherche, ordre colonnes
+        stateSave: true,
+        stateDuration: 60 * 60 * 24 * 7, // 7 jours
+
+        // ColReorder - réorganiser colonnes par glisser-déposer
+        colReorder: true,
+
+        // FixedHeader - en-tête fixe lors du scroll
+        fixedHeader: true,
+
+        // Buttons - export Excel, PDF, Print, Copy
+        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"Bf>>' +
              '<"row"<"col-sm-12"tr>>' +
              '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+
+        buttons: [
+            {
+                extend: 'copy',
+                text: '<i class="bi bi-clipboard"></i> Copier',
+                className: 'btn btn-sm btn-secondary',
+                exportOptions: { columns: ':not(.no-export)' }
+            },
+            {
+                extend: 'excel',
+                text: '<i class="bi bi-file-earmark-excel"></i> Excel',
+                className: 'btn btn-sm btn-success',
+                exportOptions: { columns: ':not(.no-export)' }
+            },
+            {
+                extend: 'pdf',
+                text: '<i class="bi bi-file-earmark-pdf"></i> PDF',
+                className: 'btn btn-sm btn-danger',
+                exportOptions: { columns: ':not(.no-export)' },
+                orientation: 'landscape'
+            },
+            {
+                extend: 'print',
+                text: '<i class="bi bi-printer"></i> Imprimer',
+                className: 'btn btn-sm btn-info',
+                exportOptions: { columns: ':not(.no-export)' }
+            }
+        ],
+
         order: [[0, 'desc']], // Tri décroissant par défaut sur la première colonne
+
         columnDefs: [
             {
                 targets: 'no-sort',
                 orderable: false
+            },
+            {
+                targets: 'no-export',
+                visible: true
             }
-        ]
+        ],
+
+        // initComplete - ajouter recherche par colonne dans footer
+        initComplete: function() {
+            const api = this.api();
+            const table = $(selector);
+
+            // Ajouter une ligne footer si elle n'existe pas
+            if (table.find('tfoot').length === 0) {
+                const footer = $('<tfoot></tfoot>');
+                const footerRow = $('<tr></tr>');
+
+                api.columns().every(function() {
+                    const column = this;
+                    const header = $(column.header());
+
+                    // Vérifier si la colonne est triable (pas de classe no-sort)
+                    if (!header.hasClass('no-sort') && !header.hasClass('no-search')) {
+                        const th = $('<th></th>');
+                        const input = $('<input type="text" class="form-control form-control-sm" placeholder="🔍 ' + header.text() + '" />')
+                            .on('keyup change clear', function() {
+                                if (column.search() !== this.value) {
+                                    column.search(this.value).draw();
+                                }
+                            });
+                        th.append(input);
+                        footerRow.append(th);
+                    } else {
+                        // Colonne non triable - cellule vide
+                        footerRow.append($('<th></th>'));
+                    }
+                });
+
+                footer.append(footerRow);
+                table.append(footer);
+            }
+        }
     };
 
     return $(selector).DataTable($.extend({}, defaultOptions, options));

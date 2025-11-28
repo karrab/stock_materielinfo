@@ -99,7 +99,7 @@ $articles = $stmt->fetchAll();
                                     <th class="text-end">Sorties</th>
                                     <th class="text-end">Disponible</th>
                                     <th class="text-center">Statut</th>
-                                    <th class="text-center no-sort">Actions</th>
+                                    <th class="text-center no-sort no-export">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>

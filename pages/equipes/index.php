@@ -79,7 +79,7 @@ $equipes = $stmt->fetchAll();
                                     <th>Nom</th>
                                     <th>Notes</th>
                                     <th>Date création</th>
-                                    <th class="text-center no-sort">Actions</th>
+                                    <th class="text-center no-sort no-export">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>

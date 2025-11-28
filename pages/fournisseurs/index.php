@@ -75,7 +75,7 @@ $fournisseurs = $stmt->fetchAll();
                                     <th>Pays</th>
                                     <th>Téléphone</th>
                                     <th>Statut</th>
-                                    <th class="text-center no-sort">Actions</th>
+                                    <th class="text-center no-sort no-export">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>

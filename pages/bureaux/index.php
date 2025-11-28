@@ -111,7 +111,7 @@ $services = $db->fetchAll();
                                     <th>Étage</th>
                                     <th>Service</th>
                                     <th>Employé</th>
-                                    <th class="text-center no-sort">Actions</th>
+                                    <th class="text-center no-sort no-export">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>

@@ -211,7 +211,7 @@ foreach ($inventaires as $inv) {
                                 <th width="10%" class="text-center">Articles</th>
                                 <th width="10%" class="text-center">Écarts</th>
                                 <th width="10%" class="text-center">Total écarts</th>
-                                <th width="10%" class="text-center no-sort">Actions</th>
+                                <th width="10%" class="text-center no-sort no-export">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
