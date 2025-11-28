@@ -190,23 +190,12 @@ function initArticleSelect(selector, placeholder = 'Sélectionner un article...'
             delay: 250,
             data: function(params) {
                 return {
-                    q: params.term,
-                    page: params.page || 1
+                    search: params.term
                 };
             },
             processResults: function(data) {
-                return {
-                    results: data.items.map(item => ({
-                        id: item.id,
-                        text: `${item.code_article} - ${item.designation}`,
-                        code_article: item.code_article,
-                        designation: item.designation,
-                        qte_disponible: item.qte_disponible
-                    })),
-                    pagination: {
-                        more: data.more
-                    }
-                };
+                // data est déjà un array [{id, text, ...}, ...]
+                return { results: data };
             },
             cache: true
         },
@@ -218,17 +207,12 @@ function initArticleSelect(selector, placeholder = 'Sélectionner un article...'
 
 // Format résultat recherche article
 function formatArticleResult(item) {
-    if (item.loading) {
-        return item.text;
+    if (item.loading || !item.text) {
+        return item.text || item.id;
     }
 
-    return $(`
-        <div class="select2-result-article">
-            <div class="fw-bold">${item.code_article}</div>
-            <div class="text-muted small">${item.designation}</div>
-            <div class="small"><span class="badge bg-info">Stock: ${formatNumber(item.qte_disponible)}</span></div>
-        </div>
-    `);
+    // item.text est déjà formaté comme "CODE - Designation" par l'API
+    return item.text;
 }
 
 // Format sélection article
@@ -249,25 +233,13 @@ function initEmployeSelect(selector, serviceId = null, placeholder = 'Sélection
             delay: 250,
             data: function(params) {
                 return {
-                    q: params.term,
-                    service_id: serviceId,
-                    page: params.page || 1
+                    search: params.term,
+                    service_id: serviceId
                 };
             },
             processResults: function(data) {
-                return {
-                    results: data.items.map(item => ({
-                        id: item.id,
-                        text: `${item.matricule} - ${item.nom} ${item.prenom}`,
-                        matricule: item.matricule,
-                        nom: item.nom,
-                        prenom: item.prenom,
-                        service_nom: item.service_nom
-                    })),
-                    pagination: {
-                        more: data.more
-                    }
-                };
+                // data est déjà un array [{id, text, ...}, ...]
+                return { results: data };
             },
             cache: true
         },
@@ -288,22 +260,12 @@ function initFournisseurSelect(selector, placeholder = 'Sélectionner un fournis
             delay: 250,
             data: function(params) {
                 return {
-                    q: params.term,
-                    page: params.page || 1
+                    search: params.term
                 };
             },
             processResults: function(data) {
-                return {
-                    results: data.items.map(item => ({
-                        id: item.id,
-                        text: item.nom_complet,
-                        ville: item.ville,
-                        tel1: item.tel1
-                    })),
-                    pagination: {
-                        more: data.more
-                    }
-                };
+                // data est déjà un array [{id, text, ...}, ...]
+                return { results: data };
             },
             cache: true
         },
@@ -324,20 +286,12 @@ function initServiceSelect(selector, placeholder = 'Sélectionner un service...'
             delay: 250,
             data: function(params) {
                 return {
-                    q: params.term,
-                    page: params.page || 1
+                    search: params.term
                 };
             },
             processResults: function(data) {
-                return {
-                    results: data.items.map(item => ({
-                        id: item.id,
-                        text: item.nom
-                    })),
-                    pagination: {
-                        more: data.more
-                    }
-                };
+                // data est déjà un array [{id, text}, ...]
+                return { results: data };
             },
             cache: true
         },
