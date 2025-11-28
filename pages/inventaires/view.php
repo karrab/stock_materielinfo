@@ -472,19 +472,55 @@ $(document).ready(function() {
         $.ajax({
             url: BASE_URL + '/pages/inventaires/update_qte_physique.php',
             method: 'POST',
+            dataType: 'json',
             data: {
                 ligne_id: ligneId,
                 qte_physique: qte
             },
             success: function(response) {
-                // Success feedback
-                input.removeClass('border-warning is-invalid');
-                input.addClass('is-valid border-success');
+                console.log('Response:', response);
 
-                setTimeout(() => {
-                    input.removeClass('is-valid border-success');
+                // Vérifier si la mise à jour a réussi
+                if (response.success) {
+                    // Success feedback
+                    input.removeClass('border-warning is-invalid');
+                    input.addClass('is-valid border-success');
+
+                    // Mettre à jour l'écart affiché
+                    const row = input.closest('tr');
+                    const ecartCell = row.find('td').eq(4);
+                    const ecart = parseFloat(response.ecart);
+
+                    let ecartText = ecart.toFixed(2).replace('.', ',');
+                    if (ecart > 0) ecartText = '+' + ecartText;
+                    else if (ecart === 0) ecartText = '0';
+
+                    ecartCell.text(ecartText);
+                    ecartCell.removeClass('text-danger text-success text-muted');
+                    if (ecart < 0) ecartCell.addClass('text-danger fw-bold');
+                    else if (ecart > 0) ecartCell.addClass('text-success fw-bold');
+                    else ecartCell.addClass('text-muted');
+
+                    // Mettre à jour l'icône d'état
+                    const iconCell = row.find('td').eq(5);
+                    iconCell.html(ecart < 0 ? '<i class="bi-arrow-down-circle text-danger"></i>' :
+                                  ecart > 0 ? '<i class="bi-arrow-up-circle text-success"></i>' :
+                                  '<i class="bi-check-circle text-success"></i>');
+
+                    setTimeout(() => {
+                        input.removeClass('is-valid border-success');
+                        input.prop('disabled', false);
+                    }, 1500);
+                } else {
+                    // Erreur retournée par le serveur
+                    input.removeClass('border-warning is-valid');
+                    input.addClass('is-invalid border-danger');
                     input.prop('disabled', false);
-                }, 1500);
+
+                    console.error('Erreur serveur:', response.error);
+                    alert('❌ Erreur: ' + (response.error || 'Erreur inconnue') +
+                          (response.debug ? '\n\nDébug: ' + response.debug : ''));
+                }
             },
             error: function(xhr, status, error) {
                 // Error feedback
@@ -492,7 +528,11 @@ $(document).ready(function() {
                 input.addClass('is-invalid border-danger');
                 input.prop('disabled', false);
 
-                alert('❌ Erreur lors de la mise à jour.\n\nVeuillez réessayer ou contacter l\'administrateur.');
+                console.error('AJAX Error:', xhr.responseText);
+                alert('❌ Erreur lors de la mise à jour.\n\n' +
+                      'Status: ' + status + '\n' +
+                      'Error: ' + error + '\n\n' +
+                      'Réponse serveur: ' + xhr.responseText.substring(0, 200));
             }
         });
     });
