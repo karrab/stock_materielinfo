@@ -151,13 +151,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="card">
                     <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
                         <span><i class="bi bi-box-seam"></i> Articles à inventorier</span>
-                        <button type="button" class="btn btn-light btn-sm" onclick="addArticleLine()">
-                            <i class="bi bi-plus-circle"></i> Ajouter un article
-                        </button>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-light btn-sm" onclick="addAllActiveArticles()">
+                                <i class="bi bi-layers-fill"></i> Tous les articles actifs
+                            </button>
+                            <button type="button" class="btn btn-light btn-sm" onclick="addArticleLine()">
+                                <i class="bi bi-plus-circle"></i> Ajouter un article
+                            </button>
+                        </div>
                     </div>
                     <div class="card-body">
                         <div class="alert alert-info">
                             <i class="bi bi-lightbulb"></i> <strong>Info :</strong> Le stock théorique sera automatiquement rempli avec le stock disponible actuel au moment de la création.
+                            Utilisez le bouton "Tous les articles actifs" pour ajouter automatiquement tous les articles en un clic.
                         </div>
                         <div class="table-responsive">
                             <table class="table table-bordered">
@@ -298,6 +304,110 @@ function removeArticleLine(lineId) {
     } else {
         alert('Vous devez avoir au moins un article à inventorier.');
     }
+}
+
+function initArticleSelect(selector) {
+    $(selector).select2({
+        theme: 'bootstrap-5',
+        placeholder: 'Sélectionner un article...',
+        ajax: {
+            url: BASE_URL + '/api/articles.php',
+            dataType: 'json',
+            delay: 250,
+            data: function(params) {
+                return { search: params.term };
+            },
+            processResults: function(data) {
+                return { results: data };
+            }
+        }
+    });
+}
+
+function addAllActiveArticles() {
+    // Demander confirmation
+    if (!confirm('Ajouter tous les articles actifs à cet inventaire ?\n\nCela va charger tous les articles de la base de données.')) {
+        return;
+    }
+
+    // Afficher loader
+    const btn = event.target.closest('button');
+    const originalHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Chargement...';
+
+    // Vider la table actuelle
+    $('#articlesBody').empty();
+    articleLineCounter = 0;
+
+    // Charger tous les articles actifs via AJAX
+    $.ajax({
+        url: BASE_URL + '/api/articles.php',
+        method: 'GET',
+        dataType: 'json',
+        data: { all_active: 1 },
+        success: function(articles) {
+            if (!articles || articles.length === 0) {
+                alert('Aucun article actif trouvé dans la base de données.');
+                addArticleLine(); // Ajouter au moins une ligne vide
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+                return;
+            }
+
+            // Ajouter chaque article
+            articles.forEach(function(article) {
+                articleLineCounter++;
+                const row = `
+                    <tr id="articleLine${articleLineCounter}">
+                        <td class="text-center align-middle">${articleLineCounter}</td>
+                        <td>
+                            <select class="form-select article-select" name="article_id[]" id="article_${articleLineCounter}" required>
+                                <option value="${article.id}" selected>${article.text}</option>
+                            </select>
+                        </td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-danger btn-sm" onclick="removeArticleLine(${articleLineCounter})">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                $('#articlesBody').append(row);
+
+                // Initialiser Select2 pour ce select
+                const selectId = '#article_' + articleLineCounter;
+                $(selectId).select2({
+                    theme: 'bootstrap-5',
+                    placeholder: 'Sélectionner un article...',
+                    ajax: {
+                        url: BASE_URL + '/api/articles.php',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function(params) {
+                            return { search: params.term };
+                        },
+                        processResults: function(data) {
+                            return { results: data };
+                        }
+                    }
+                });
+            });
+
+            // Restaurer le bouton
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+
+            // Message de succès
+            alert(`✅ ${articles.length} article(s) actif(s) ajouté(s) avec succès !`);
+        },
+        error: function(xhr, status, error) {
+            alert('❌ Erreur lors du chargement des articles: ' + error);
+            addArticleLine(); // Ajouter au moins une ligne vide
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+        }
+    });
 }
 </script>
 

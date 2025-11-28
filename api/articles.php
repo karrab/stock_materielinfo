@@ -12,7 +12,32 @@ if (!$auth->isLoggedIn()) {
 
 $db = Database::getInstance();
 
-$search = $_GET['q'] ?? '';
+// Cas spécial: retourner TOUS les articles actifs (pour inventaires)
+if (isset($_GET['all_active']) && $_GET['all_active'] == 1) {
+    $sql = "SELECT id, code_article, designation, qte_disponible
+            FROM articles
+            WHERE actif = 1
+            ORDER BY code_article ASC";
+
+    $stmt = $db->getConnection()->prepare($sql);
+    $stmt->execute();
+    $items = $stmt->fetchAll();
+
+    // Formater pour Select2
+    $results = [];
+    foreach ($items as $item) {
+        $results[] = [
+            'id' => $item['id'],
+            'text' => $item['code_article'] . ' - ' . $item['designation']
+        ];
+    }
+
+    echo json_encode($results);
+    exit;
+}
+
+// Cas normal: recherche avec pagination (pour Select2)
+$search = $_GET['search'] ?? $_GET['q'] ?? $_GET['term'] ?? '';
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $per_page = 20;
 $offset = ($page - 1) * $per_page;
@@ -29,7 +54,7 @@ if (!empty($search)) {
     $params[':search'] = '%' . $search . '%';
 }
 
-$sql .= " ORDER BY designation ASC LIMIT :limit OFFSET :offset";
+$sql .= " ORDER BY code_article ASC LIMIT :limit OFFSET :offset";
 
 $stmt = $db->getConnection()->prepare($sql);
 
@@ -43,23 +68,14 @@ $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
 $stmt->execute();
 $items = $stmt->fetchAll();
 
-// Vérifier s'il y a plus de résultats
-$total_sql = "SELECT COUNT(*) as total FROM articles WHERE actif = 1";
-if (!empty($search)) {
-    $total_sql .= " AND (code_article LIKE :search OR designation LIKE :search)";
+// Formater pour Select2
+$results = [];
+foreach ($items as $item) {
+    $results[] = [
+        'id' => $item['id'],
+        'text' => $item['code_article'] . ' - ' . $item['designation'],
+        'qte_disponible' => $item['qte_disponible']
+    ];
 }
 
-$stmt_total = $db->getConnection()->prepare($total_sql);
-if (!empty($search)) {
-    $stmt_total->bindValue(':search', '%' . $search . '%');
-}
-$stmt_total->execute();
-$total = $stmt_total->fetch()['total'];
-
-$more = ($offset + $per_page) < $total;
-
-echo json_encode([
-    'items' => $items,
-    'more' => $more,
-    'total' => $total
-]);
+echo json_encode($results);
