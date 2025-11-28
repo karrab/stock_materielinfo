@@ -12,7 +12,22 @@ if (!$auth->isLoggedIn()) {
 
 $db = Database::getInstance();
 
-$search = $_GET['q'] ?? '';
+// Si un ID spécifique est demandé
+if (isset($_GET['id']) && !empty($_GET['id'])) {
+    $id = intval($_GET['id']);
+    $sql = "SELECT id, nom_complet as text FROM fournisseurs WHERE id = :id";
+
+    $stmt = $db->getConnection()->prepare($sql);
+    $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+    $stmt->execute();
+    $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    echo json_encode($results);
+    exit;
+}
+
+// Recherche normale
+$search = $_GET['search'] ?? $_GET['q'] ?? $_GET['term'] ?? '';
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $per_page = 20;
 $offset = ($page - 1) * $per_page;
@@ -42,22 +57,16 @@ $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
 $stmt->execute();
 $items = $stmt->fetchAll();
 
-$total_sql = "SELECT COUNT(*) as total FROM fournisseurs WHERE actif = 1";
-if (!empty($search)) {
-    $total_sql .= " AND (nom_complet LIKE :search OR ville LIKE :search)";
+// Formater pour Select2
+$results = [];
+foreach ($items as $item) {
+    $results[] = [
+        'id' => $item['id'],
+        'text' => $item['nom_complet'],
+        'ville' => $item['ville'] ?? '',
+        'pays' => $item['pays'] ?? '',
+        'tel1' => $item['tel1'] ?? ''
+    ];
 }
 
-$stmt_total = $db->getConnection()->prepare($total_sql);
-if (!empty($search)) {
-    $stmt_total->bindValue(':search', '%' . $search . '%');
-}
-$stmt_total->execute();
-$total = $stmt_total->fetch()['total'];
-
-$more = ($offset + $per_page) < $total;
-
-echo json_encode([
-    'items' => $items,
-    'more' => $more,
-    'total' => $total
-]);
+echo json_encode($results);

@@ -12,7 +12,34 @@ if (!$auth->isLoggedIn()) {
 
 $db = Database::getInstance();
 
-$search = $_GET['q'] ?? '';
+// Si un ID spécifique est demandé
+if (isset($_GET['id']) && !empty($_GET['id'])) {
+    $id = intval($_GET['id']);
+    $sql = "SELECT e.id, e.matricule, e.nom, e.prenom, s.nom as service_nom
+            FROM employes e
+            INNER JOIN services s ON e.service_id = s.id
+            WHERE e.id = :id";
+
+    $stmt = $db->getConnection()->prepare($sql);
+    $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+    $stmt->execute();
+    $item = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($item) {
+        $results = [[
+            'id' => $item['id'],
+            'text' => $item['matricule'] . ' - ' . $item['nom'] . ' ' . $item['prenom']
+        ]];
+    } else {
+        $results = [];
+    }
+
+    echo json_encode($results);
+    exit;
+}
+
+// Recherche normale
+$search = $_GET['search'] ?? $_GET['q'] ?? $_GET['term'] ?? '';
 $service_id = $_GET['service_id'] ?? null;
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $per_page = 20;
@@ -50,31 +77,17 @@ $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
 $stmt->execute();
 $items = $stmt->fetchAll();
 
-// Vérifier s'il y a plus de résultats
-$total_sql = "SELECT COUNT(*) as total FROM employes WHERE actif = 1";
-$total_params = [];
-
-if (!empty($search)) {
-    $total_sql .= " AND (matricule LIKE :search OR nom LIKE :search OR prenom LIKE :search)";
-    $total_params[':search'] = '%' . $search . '%';
+// Formater pour Select2
+$results = [];
+foreach ($items as $item) {
+    $results[] = [
+        'id' => $item['id'],
+        'text' => $item['matricule'] . ' - ' . $item['nom'] . ' ' . $item['prenom'],
+        'matricule' => $item['matricule'],
+        'nom' => $item['nom'],
+        'prenom' => $item['prenom'],
+        'service_nom' => $item['service_nom']
+    ];
 }
 
-if (!empty($service_id)) {
-    $total_sql .= " AND service_id = :service_id";
-    $total_params[':service_id'] = $service_id;
-}
-
-$stmt_total = $db->getConnection()->prepare($total_sql);
-foreach ($total_params as $key => $value) {
-    $stmt_total->bindValue($key, $value);
-}
-$stmt_total->execute();
-$total = $stmt_total->fetch()['total'];
-
-$more = ($offset + $per_page) < $total;
-
-echo json_encode([
-    'items' => $items,
-    'more' => $more,
-    'total' => $total
-]);
+echo json_encode($results);
