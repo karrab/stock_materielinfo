@@ -60,9 +60,11 @@ try {
         exit;
     }
 
-    // Mettre à jour la quantité physique
+    // Mettre à jour la quantité physique ET recalculer l'écart automatiquement
+    // ecart = qte_physique - qte_theorique
     $sql = "UPDATE ligne_inventaires
-            SET qte_physique = :qte
+            SET qte_physique = :qte,
+                ecart = :qte - qte_theorique
             WHERE id = :id";
 
     $db->prepare($sql);
@@ -70,10 +72,17 @@ try {
     $db->bind(':id', $ligne_id);
 
     if ($db->execute()) {
+        // Récupérer l'écart calculé pour le retourner
+        $db->prepare("SELECT ecart, qte_theorique FROM ligne_inventaires WHERE id = :id");
+        $db->bind(':id', $ligne_id);
+        $updated = $db->fetch();
+
         echo json_encode([
             'success' => true,
-            'message' => 'Quantité mise à jour',
-            'qte_physique' => $qte_physique
+            'message' => 'Quantité mise à jour et écart recalculé',
+            'qte_physique' => $qte_physique,
+            'qte_theorique' => $updated['qte_theorique'],
+            'ecart' => $updated['ecart']
         ]);
     } else {
         http_response_code(500);
