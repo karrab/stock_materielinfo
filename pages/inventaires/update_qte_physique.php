@@ -12,8 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// Vérifier l'authentification
-session_start();
+// Vérifier l'authentification (session déjà démarrée par config.php)
 $auth = Auth::getInstance();
 if (!$auth->isLoggedIn() || !$auth->hasPermission('inventaires', 'update')) {
     http_response_code(403);
@@ -41,12 +40,15 @@ try {
     $db = Database::getInstance();
 
     // Vérifier que la ligne appartient à un inventaire en cours
-    $db->prepare("SELECT i.etat
+    $sql_check = "SELECT i.etat, li.qte_theorique
                   FROM ligne_inventaires li
                   INNER JOIN inventaires i ON li.inventaire_id = i.id
-                  WHERE li.id = :ligne_id");
-    $db->bind(':ligne_id', $ligne_id);
-    $ligne = $db->fetch();
+                  WHERE li.id = :ligne_id";
+
+    $stmt = $db->getConnection()->prepare($sql_check);
+    $stmt->bindValue(':ligne_id', $ligne_id, PDO::PARAM_INT);
+    $stmt->execute();
+    $ligne = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$ligne) {
         http_response_code(404);
@@ -60,33 +62,37 @@ try {
         exit;
     }
 
-    // Mettre à jour la quantité physique ET recalculer l'écart automatiquement
-    // ecart = qte_physique - qte_theorique
-    $sql = "UPDATE ligne_inventaires
-            SET qte_physique = :qte,
-                ecart = :qte - qte_theorique
-            WHERE id = :id";
+    // Calculer l'écart
+    $qte_theorique = floatval($ligne['qte_theorique']);
+    $ecart = $qte_physique - $qte_theorique;
 
-    $db->prepare($sql);
-    $db->bind(':qte', $qte_physique);
-    $db->bind(':id', $ligne_id);
+    // Mettre à jour la quantité physique ET l'écart
+    $sql_update = "UPDATE ligne_inventaires
+                   SET qte_physique = :qte_physique,
+                       ecart = :ecart
+                   WHERE id = :ligne_id";
 
-    if ($db->execute()) {
-        // Récupérer l'écart calculé pour le retourner
-        $db->prepare("SELECT ecart, qte_theorique FROM ligne_inventaires WHERE id = :id");
-        $db->bind(':id', $ligne_id);
-        $updated = $db->fetch();
+    $stmt_update = $db->getConnection()->prepare($sql_update);
+    $stmt_update->bindValue(':qte_physique', $qte_physique, PDO::PARAM_STR);
+    $stmt_update->bindValue(':ecart', $ecart, PDO::PARAM_STR);
+    $stmt_update->bindValue(':ligne_id', $ligne_id, PDO::PARAM_INT);
 
+    if ($stmt_update->execute()) {
         echo json_encode([
             'success' => true,
             'message' => 'Quantité mise à jour et écart recalculé',
             'qte_physique' => $qte_physique,
-            'qte_theorique' => $updated['qte_theorique'],
-            'ecart' => $updated['ecart']
+            'qte_theorique' => $qte_theorique,
+            'ecart' => $ecart
         ]);
     } else {
+        $errorInfo = $stmt_update->errorInfo();
         http_response_code(500);
-        echo json_encode(['success' => false, 'error' => 'Erreur lors de la mise à jour']);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Erreur lors de la mise à jour',
+            'debug' => $errorInfo[2] ?? 'Unknown error'
+        ]);
     }
 
 } catch (Exception $e) {
