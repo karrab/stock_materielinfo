@@ -98,9 +98,14 @@
                         <i class="bi bi-gear"></i> Administration
                     </a>
                     <ul class="dropdown-menu" aria-labelledby="navbarAdmin">
+                        <li><h6 class="dropdown-header"><i class="bi bi-shield-lock"></i> Sécurité</h6></li>
                         <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>/pages/users/index.php"><i class="bi bi-person-badge"></i> Utilisateurs</a></li>
-                        <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>/pages/parametres/edit.php"><i class="bi bi-sliders"></i> Paramètres</a></li>
+                        <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>/pages/roles/index.php"><i class="bi bi-shield-check"></i> Rôles</a></li>
+                        <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>/pages/permissions/index.php"><i class="bi bi-key"></i> Permissions</a></li>
+                        <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>/pages/historique/index.php"><i class="bi bi-clock-history"></i> Historique</a></li>
                         <li><hr class="dropdown-divider"></li>
+                        <li><h6 class="dropdown-header"><i class="bi bi-tools"></i> Système</h6></li>
+                        <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>/pages/parametres/edit.php"><i class="bi bi-sliders"></i> Paramètres</a></li>
                         <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>/pages/recalcul/index.php"><i class="bi bi-calculator"></i> Recalcul Stock</a></li>
                     </ul>
                 </li>
