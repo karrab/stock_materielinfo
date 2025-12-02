@@ -6,39 +6,45 @@ $auth->requirePermission('retours', 'view');
 $db = Database::getInstance();
 
 $search = $_GET['search'] ?? '';
-$fournisseur_id = $_GET['fournisseur_id'] ?? '';
+$service_id = $_GET['service_id'] ?? '';
 $date_debut = $_GET['date_debut'] ?? '';
 $date_fin = $_GET['date_fin'] ?? '';
 
-$sql = "SELECT e.*, f.nom_complet as fournisseur, COUNT(le.id) as nb_articles,
-               SUM(le.qte_retour) as qte_totale
-        FROM retours e
-        INNER JOIN fournisseurs f ON e.fournisseur_id = f.id
-        LEFT JOIN ligne_retours le ON e.id = le.retour_id
+$sql = "SELECT r.*,
+               s.nom as service_nom,
+               e.nom as employe_nom, e.prenom as employe_prenom,
+               COUNT(lr.id) as nb_articles,
+               SUM(lr.qte_retour) as qte_totale,
+               u.nom as user_nom, u.prenom as user_prenom
+        FROM retours r
+        INNER JOIN services s ON r.service_id = s.id
+        INNER JOIN employes e ON r.employe_id = e.id
+        LEFT JOIN ligne_retours lr ON r.id = lr.retour_id
+        LEFT JOIN users u ON r.user_id = u.id
         WHERE 1=1";
 $params = [];
 
 if (!empty($search)) {
-    $sql .= " AND (e.notes LIKE :search OR f.nom_complet LIKE :search)";
+    $sql .= " AND (r.notes LIKE :search OR s.nom LIKE :search OR e.nom LIKE :search OR e.prenom LIKE :search)";
     $params[':search'] = '%' . $search . '%';
 }
 
-if (!empty($fournisseur_id)) {
-    $sql .= " AND e.fournisseur_id = :fournisseur_id";
-    $params[':fournisseur_id'] = $fournisseur_id;
+if (!empty($service_id)) {
+    $sql .= " AND r.service_id = :service_id";
+    $params[':service_id'] = $service_id;
 }
 
 if (!empty($date_debut)) {
-    $sql .= " AND e.date >= :date_debut";
+    $sql .= " AND r.date >= :date_debut";
     $params[':date_debut'] = $date_debut;
 }
 
 if (!empty($date_fin)) {
-    $sql .= " AND e.date <= :date_fin";
+    $sql .= " AND r.date <= :date_fin";
     $params[':date_fin'] = $date_fin;
 }
 
-$sql .= " GROUP BY e.id ORDER BY e.date DESC, e.id DESC";
+$sql .= " GROUP BY r.id ORDER BY r.date DESC, r.id DESC";
 
 $stmt = $db->getConnection()->prepare($sql);
 foreach ($params as $key => $value) {
@@ -47,9 +53,9 @@ foreach ($params as $key => $value) {
 $stmt->execute();
 $retours = $stmt->fetchAll();
 
-// Liste fournisseurs pour filtre
-$db->prepare("SELECT id, nom_complet FROM fournisseurs WHERE actif = 1 ORDER BY nom_complet");
-$fournisseurs = $db->fetchAll();
+// Liste services pour filtre
+$db->prepare("SELECT id, nom FROM services ORDER BY nom");
+$services = $db->fetchAll();
 ?>
 
 <?php require_once __DIR__ . '/../../includes/navbar.php'; ?>
@@ -70,7 +76,7 @@ $fournisseurs = $db->fetchAll();
                 <div>
                     <?php if ($auth->hasPermission('retours', 'create')): ?>
                         <a href="<?php echo BASE_URL; ?>/pages/retours/create.php" class="btn btn-primary">
-                            <i class="bi bi-plus-circle"></i> Nouvelle entrée
+                            <i class="bi bi-plus-circle"></i> Nouveau retour
                         </a>
                     <?php endif; ?>
                 </div>
@@ -82,7 +88,7 @@ $fournisseurs = $db->fetchAll();
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
-                    <i class="bi bi-list-ul"></i> Liste des entrées
+                    <i class="bi bi-list-ul"></i> Liste des retours
                 </div>
                 <div class="card-body">
                     <!-- Filtres -->
@@ -92,11 +98,11 @@ $fournisseurs = $db->fetchAll();
                                 <input type="text" class="form-control" name="search" placeholder="Rechercher..." value="<?php echo htmlspecialchars($search); ?>">
                             </div>
                             <div class="col-md-2">
-                                <select class="form-select" name="fournisseur_id">
-                                    <option value="">Tous les fournisseurs</option>
-                                    <?php foreach ($fournisseurs as $f): ?>
-                                        <option value="<?php echo $f['id']; ?>" <?php echo $fournisseur_id == $f['id'] ? 'selected' : ''; ?>>
-                                            <?php echo htmlspecialchars($f['nom_complet']); ?>
+                                <select class="form-select" name="service_id">
+                                    <option value="">Tous les services</option>
+                                    <?php foreach ($services as $s): ?>
+                                        <option value="<?php echo $s['id']; ?>" <?php echo $service_id == $s['id'] ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($s['nom']); ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
@@ -109,7 +115,7 @@ $fournisseurs = $db->fetchAll();
                             </div>
                             <div class="col-md-3">
                                 <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Rechercher</button>
-                                <?php if (!empty($search) || !empty($fournisseur_id) || !empty($date_debut) || !empty($date_fin)): ?>
+                                <?php if (!empty($search) || !empty($service_id) || !empty($date_debut) || !empty($date_fin)): ?>
                                     <a href="<?php echo BASE_URL; ?>/pages/retours/index.php" class="btn btn-secondary"><i class="bi bi-x"></i></a>
                                 <?php endif; ?>
                             </div>
@@ -123,7 +129,8 @@ $fournisseurs = $db->fetchAll();
                                 <tr>
                                     <th>N°</th>
                                     <th>Date</th>
-                                    <th>Fournisseur</th>
+                                    <th>Service</th>
+                                    <th>Employé</th>
                                     <th class="text-center">Articles</th>
                                     <th class="text-center">Quantité totale</th>
                                     <th>Fichier</th>
@@ -136,7 +143,8 @@ $fournisseurs = $db->fetchAll();
                                         <tr>
                                             <td><strong>#<?php echo $retour['id']; ?></strong></td>
                                             <td><?php echo date('d/m/Y', strtotime($retour['date'])); ?></td>
-                                            <td><?php echo htmlspecialchars($retour['fournisseur']); ?></td>
+                                            <td><?php echo htmlspecialchars($retour['service_nom']); ?></td>
+                                            <td><?php echo htmlspecialchars($retour['employe_nom'] . ' ' . $retour['employe_prenom']); ?></td>
                                             <td class="text-center"><span class="badge bg-info"><?php echo $retour['nb_articles']; ?></span></td>
                                             <td class="text-center"><?php echo number_format($retour['qte_totale'], 2, ',', ' '); ?></td>
                                             <td>
