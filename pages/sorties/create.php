@@ -201,13 +201,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="bureau_id" class="form-label">Bureau</label>
-                                <select class="form-select" id="bureau_id" name="bureau_id">
+                                <select class="form-select select2" id="bureau_id" name="bureau_id">
                                     <option value="">Aucun</option>
                                 </select>
+                                <small class="text-muted">Se remplit automatiquement avec le bureau de l'employé affecté</small>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="armoire_id" class="form-label">Armoire</label>
-                                <select class="form-select" id="armoire_id" name="armoire_id">
+                                <select class="form-select select2" id="armoire_id" name="armoire_id">
                                     <option value="">Aucune</option>
                                 </select>
                             </div>
@@ -289,6 +290,8 @@ let articleLineCounter = 0;
 $(document).ready(function() {
     initServiceSelect('#service_id');
     initServiceSelect('#service_affectation_id');
+    initBureauSelect('#bureau_id');
+    initArmoireSelect('#armoire_id');
 
     // Charger employés quand service change
     $('#service_id').on('change', function() {
@@ -304,6 +307,38 @@ $(document).ready(function() {
         $('#employe_affectation_id').empty().append('<option value="">Aucun</option>');
         if (service_id) {
             initEmployeSelect('#employe_affectation_id', service_id);
+        }
+    });
+
+    // Charger automatiquement le bureau de l'employé affecté
+    $('#employe_affectation_id').on('change', function() {
+        let employe_id = $(this).val();
+        if (employe_id) {
+            // Charger le bureau de l'employé
+            $.ajax({
+                url: BASE_URL + '/api/employes.php',
+                data: { id: employe_id },
+                dataType: 'json',
+                success: function(data) {
+                    if (data && data.length > 0 && data[0].bureau_id) {
+                        // L'employé a un bureau assigné, le pré-sélectionner
+                        $.ajax({
+                            url: BASE_URL + '/api/bureaux.php',
+                            data: { id: data[0].bureau_id },
+                            dataType: 'json',
+                            success: function(bureauData) {
+                                if (bureauData && bureauData.length > 0) {
+                                    const option = new Option(bureauData[0].text, bureauData[0].id, true, true);
+                                    $('#bureau_id').append(option).trigger('change');
+                                }
+                            }
+                        });
+                    }
+                }
+            });
+        } else {
+            // Réinitialiser le bureau si pas d'employé sélectionné
+            $('#bureau_id').val(null).trigger('change');
         }
     });
 

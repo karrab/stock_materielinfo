@@ -6,27 +6,27 @@ $auth->requirePermission('inventaires', 'create');
 $db = Database::getInstance();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $reference = trim($_POST['reference'] ?? '');
     $date_debut = $_POST['date_debut'] ?? '';
     $equipe_id = !empty($_POST['equipe_id']) ? intval($_POST['equipe_id']) : null;
     $notes = trim($_POST['notes'] ?? '');
     $articles = $_POST['article_id'] ?? [];
 
     $errors = [];
-    if (empty($reference)) $errors[] = 'La référence est obligatoire.';
     if (empty($date_debut)) $errors[] = 'La date de début est obligatoire.';
     if (empty($articles)) $errors[] = 'Veuillez ajouter au moins un article à inventorier.';
-
-    // Vérifier unicité référence
-    $db->prepare("SELECT COUNT(*) as count FROM inventaires WHERE reference = :ref");
-    $db->bind(':ref', $reference);
-    if ($db->fetch()['count'] > 0) {
-        $errors[] = 'Un inventaire avec cette référence existe déjà.';
-    }
 
     if (empty($errors)) {
         try {
             $db->beginTransaction();
+
+            // Générer référence automatique format: INV-ANNEE-NUMERO
+            $annee = date('Y');
+            $sql_count = "SELECT COUNT(*) as count FROM inventaires WHERE reference LIKE :pattern";
+            $db->prepare($sql_count);
+            $db->bind(':pattern', "INV-$annee-%");
+            $count = $db->fetch()['count'];
+            $numero = str_pad($count + 1, 3, '0', STR_PAD_LEFT);
+            $reference = "INV-$annee-$numero";
 
             // Insert inventaire
             $sql = "INSERT INTO inventaires (reference, date_debut, equipe_id, etat, notes, user_id)
@@ -79,6 +79,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+// Calculer la prochaine référence pour affichage
+$annee = date('Y');
+$sql_count = "SELECT COUNT(*) as count FROM inventaires WHERE reference LIKE :pattern";
+$db->prepare($sql_count);
+$db->bind(':pattern', "INV-$annee-%");
+$count = $db->fetch()['count'];
+$numero = str_pad($count + 1, 3, '0', STR_PAD_LEFT);
+$next_reference = "INV-$annee-$numero";
 ?>
 
 <?php require_once __DIR__ . '/../../includes/navbar.php'; ?>
@@ -118,14 +127,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label for="reference" class="form-label required">Référence de l'inventaire</label>
-                                <input type="text" class="form-control form-control-lg" id="reference" name="reference" required 
-                                       placeholder="Ex: INV-2024-001" value="<?php echo htmlspecialchars($_POST['reference'] ?? ''); ?>">
-                                <div class="form-text">Référence unique pour identifier cet inventaire</div>
+                                <label class="form-label">Référence de l'inventaire</label>
+                                <div class="input-group input-group-lg">
+                                    <span class="input-group-text bg-success text-white">
+                                        <i class="bi bi-tag-fill"></i>
+                                    </span>
+                                    <input type="text" class="form-control form-control-lg fw-bold"
+                                           value="<?php echo $next_reference; ?>" readonly>
+                                </div>
+                                <div class="form-text text-success">
+                                    <i class="bi bi-check-circle"></i> Référence générée automatiquement
+                                </div>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="date_debut" class="form-label required">Date de début</label>
-                                <input type="date" class="form-control form-control-lg" id="date_debut" name="date_debut" required 
+                                <input type="date" class="form-control form-control-lg" id="date_debut" name="date_debut" required
                                        value="<?php echo $_POST['date_debut'] ?? date('Y-m-d'); ?>">
                                 <div class="form-text">Date de démarrage de l'inventaire</div>
                             </div>

@@ -15,9 +15,10 @@ $db = Database::getInstance();
 // Si un ID spécifique est demandé
 if (isset($_GET['id']) && !empty($_GET['id'])) {
     $id = intval($_GET['id']);
-    $sql = "SELECT e.id, e.matricule, e.nom, e.prenom, s.nom as service_nom
+    $sql = "SELECT e.id, e.matricule, e.nom, e.prenom, e.service_id, s.nom as service_nom, b.id as bureau_id, b.code_local
             FROM employes e
             INNER JOIN services s ON e.service_id = s.id
+            LEFT JOIN bureaux b ON b.employe_id = e.id
             WHERE e.id = :id";
 
     $stmt = $db->getConnection()->prepare($sql);
@@ -28,7 +29,9 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
     if ($item) {
         $results = [[
             'id' => $item['id'],
-            'text' => $item['matricule'] . ' - ' . $item['nom'] . ' ' . $item['prenom']
+            'text' => $item['matricule'] . ' - ' . $item['nom'] . ' ' . $item['prenom'],
+            'bureau_id' => $item['bureau_id'],
+            'code_local' => $item['code_local']
         ]];
     } else {
         $results = [];

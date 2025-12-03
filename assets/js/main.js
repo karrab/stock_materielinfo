@@ -299,6 +299,54 @@ function initServiceSelect(selector, placeholder = 'Sélectionner un service...'
     });
 }
 
+function initBureauSelect(selector, placeholder = 'Sélectionner un bureau...') {
+    $(selector).select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: placeholder,
+        allowClear: true,
+        ajax: {
+            url: BASE_URL + '/api/bureaux.php',
+            dataType: 'json',
+            delay: 250,
+            data: function(params) {
+                return {
+                    search: params.term
+                };
+            },
+            processResults: function(data) {
+                return { results: data };
+            },
+            cache: true
+        },
+        minimumInputLength: 0
+    });
+}
+
+function initArmoireSelect(selector, placeholder = 'Sélectionner une armoire...') {
+    $(selector).select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: placeholder,
+        allowClear: true,
+        ajax: {
+            url: BASE_URL + '/api/armoires.php',
+            dataType: 'json',
+            delay: 250,
+            data: function(params) {
+                return {
+                    search: params.term
+                };
+            },
+            processResults: function(data) {
+                return { results: data };
+            },
+            cache: true
+        },
+        minimumInputLength: 0
+    });
+}
+
 // Gestion du drag & drop pour upload de fichiers
 function initFileUploadZone(zoneSelector, inputSelector) {
     const zone = $(zoneSelector);
