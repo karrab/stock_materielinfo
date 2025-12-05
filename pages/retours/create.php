@@ -238,9 +238,30 @@ $(document).ready(function() {
     // Charger employés quand service change
     $('#service_id').on('change', function() {
         let service_id = $(this).val();
-        $('#employe_id').empty().append('<option value="">Chargement...</option>');
+
+        // Réinitialiser le select employe_id
+        $('#employe_id').html('<option value="">Sélectionner un employé...</option>').prop('disabled', !service_id);
+
         if (service_id) {
-            initEmployeSelect('#employe_id', service_id);
+            // Charger les employés du service sélectionné
+            $.ajax({
+                url: BASE_URL + '/api/getemployebyservice.php',
+                data: { service_id: service_id, search: '' },
+                dataType: 'json',
+                success: function(data) {
+                    if (data && data.length > 0) {
+                        data.forEach(function(employe) {
+                            $('#employe_id').append(new Option(employe.text, employe.id));
+                        });
+                    } else {
+                        $('#employe_id').html('<option value="">Aucun employé dans ce service</option>');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error loading employes:', error);
+                    $('#employe_id').html('<option value="">Erreur de chargement</option>');
+                }
+            });
         }
     });
 

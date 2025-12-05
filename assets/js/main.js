@@ -190,12 +190,21 @@ function initArticleSelect(selector, placeholder = 'Sélectionner un article...'
             delay: 250,
             data: function(params) {
                 return {
-                    search: params.term
+                    search: params.term || ''
                 };
             },
             processResults: function(data) {
                 // data est déjà un array [{id, text, ...}, ...]
+                if (!Array.isArray(data)) {
+                    console.error('API articles.php returned invalid data:', data);
+                    return { results: [] };
+                }
                 return { results: data };
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading articles:', error);
+                console.error('Status:', status);
+                console.error('Response:', xhr.responseText);
             },
             cache: true
         },
@@ -233,13 +242,22 @@ function initEmployeSelect(selector, serviceId = null, placeholder = 'Sélection
             delay: 250,
             data: function(params) {
                 return {
-                    search: params.term,
+                    search: params.term || '',
                     service_id: serviceId
                 };
             },
             processResults: function(data) {
                 // data est déjà un array [{id, text, ...}, ...]
+                if (!Array.isArray(data)) {
+                    console.error('API employes.php returned invalid data:', data);
+                    return { results: [] };
+                }
                 return { results: data };
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading employes:', error);
+                console.error('Status:', status);
+                console.error('Response:', xhr.responseText);
             },
             cache: true
         },
@@ -260,12 +278,21 @@ function initFournisseurSelect(selector, placeholder = 'Sélectionner un fournis
             delay: 250,
             data: function(params) {
                 return {
-                    search: params.term
+                    search: params.term || ''
                 };
             },
             processResults: function(data) {
                 // data est déjà un array [{id, text, ...}, ...]
+                if (!Array.isArray(data)) {
+                    console.error('API fournisseurs.php returned invalid data:', data);
+                    return { results: [] };
+                }
                 return { results: data };
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading fournisseurs:', error);
+                console.error('Status:', status);
+                console.error('Response:', xhr.responseText);
             },
             cache: true
         },
@@ -286,12 +313,21 @@ function initServiceSelect(selector, placeholder = 'Sélectionner un service...'
             delay: 250,
             data: function(params) {
                 return {
-                    search: params.term
+                    search: params.term || ''
                 };
             },
             processResults: function(data) {
                 // data est déjà un array [{id, text}, ...]
+                if (!Array.isArray(data)) {
+                    console.error('API services.php returned invalid data:', data);
+                    return { results: [] };
+                }
                 return { results: data };
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading services:', error);
+                console.error('Status:', status);
+                console.error('Response:', xhr.responseText);
             },
             cache: true
         },
@@ -311,11 +347,20 @@ function initBureauSelect(selector, placeholder = 'Sélectionner un bureau...') 
             delay: 250,
             data: function(params) {
                 return {
-                    search: params.term
+                    search: params.term || ''
                 };
             },
             processResults: function(data) {
+                if (!Array.isArray(data)) {
+                    console.error('API bureaux.php returned invalid data:', data);
+                    return { results: [] };
+                }
                 return { results: data };
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading bureaux:', error);
+                console.error('Status:', status);
+                console.error('Response:', xhr.responseText);
             },
             cache: true
         },
@@ -335,11 +380,20 @@ function initArmoireSelect(selector, placeholder = 'Sélectionner une armoire...
             delay: 250,
             data: function(params) {
                 return {
-                    search: params.term
+                    search: params.term || ''
                 };
             },
             processResults: function(data) {
+                if (!Array.isArray(data)) {
+                    console.error('API armoires.php returned invalid data:', data);
+                    return { results: [] };
+                }
                 return { results: data };
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading armoires:', error);
+                console.error('Status:', status);
+                console.error('Response:', xhr.responseText);
             },
             cache: true
         },

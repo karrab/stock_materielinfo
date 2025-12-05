@@ -293,52 +293,95 @@ $(document).ready(function() {
     initBureauSelect('#bureau_id');
     initArmoireSelect('#armoire_id');
 
-    // Charger employés quand service change
+    // Charger employés quand service demandeur change
     $('#service_id').on('change', function() {
         let service_id = $(this).val();
-        $('#employe_id').empty().append('<option value="">Chargement...</option>');
+
+        // Réinitialiser le select employe_id
+        $('#employe_id').html('<option value="">Sélectionner un employé...</option>').prop('disabled', !service_id);
+
         if (service_id) {
-            initEmployeSelect('#employe_id', service_id);
+            // Charger les employés du service sélectionné
+            $.ajax({
+                url: BASE_URL + '/api/getemployebyservice.php',
+                data: { service_id: service_id, search: '' },
+                dataType: 'json',
+                success: function(data) {
+                    if (data && data.length > 0) {
+                        data.forEach(function(employe) {
+                            $('#employe_id').append(new Option(employe.text, employe.id));
+                        });
+                    } else {
+                        $('#employe_id').html('<option value="">Aucun employé dans ce service</option>');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error loading employes:', error);
+                    $('#employe_id').html('<option value="">Erreur de chargement</option>');
+                }
+            });
         }
     });
 
+    // Charger employés quand service affectation change
     $('#service_affectation_id').on('change', function() {
         let service_id = $(this).val();
-        $('#employe_affectation_id').empty().append('<option value="">Aucun</option>');
+
+        // Réinitialiser le select employe_affectation_id
+        $('#employe_affectation_id').html('<option value="">Aucun</option>').prop('disabled', !service_id);
+
+        // Réinitialiser aussi le bureau
+        $('#bureau_id').html('<option value="">Aucun</option>');
+
         if (service_id) {
-            initEmployeSelect('#employe_affectation_id', service_id);
+            // Charger les employés du service sélectionné
+            $.ajax({
+                url: BASE_URL + '/api/getemployebyservice.php',
+                data: { service_id: service_id, search: '' },
+                dataType: 'json',
+                success: function(data) {
+                    if (data && data.length > 0) {
+                        data.forEach(function(employe) {
+                            $('#employe_affectation_id').append(new Option(employe.text, employe.id));
+                        });
+                    } else {
+                        $('#employe_affectation_id').html('<option value="">Aucun employé dans ce service</option>');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error loading employes affectation:', error);
+                    $('#employe_affectation_id').html('<option value="">Erreur de chargement</option>');
+                }
+            });
         }
     });
 
     // Charger automatiquement le bureau de l'employé affecté
     $('#employe_affectation_id').on('change', function() {
         let employe_id = $(this).val();
+
+        // Réinitialiser le bureau
+        $('#bureau_id').html('<option value="">Aucun</option>');
+
         if (employe_id) {
             // Charger le bureau de l'employé
             $.ajax({
-                url: BASE_URL + '/api/employes.php',
-                data: { id: employe_id },
+                url: BASE_URL + '/api/getbureaubyemploye.php',
+                data: { employe_id: employe_id },
                 dataType: 'json',
-                success: function(data) {
-                    if (data && data.length > 0 && data[0].bureau_id) {
-                        // L'employé a un bureau assigné, le pré-sélectionner
-                        $.ajax({
-                            url: BASE_URL + '/api/bureaux.php',
-                            data: { id: data[0].bureau_id },
-                            dataType: 'json',
-                            success: function(bureauData) {
-                                if (bureauData && bureauData.length > 0) {
-                                    const option = new Option(bureauData[0].text, bureauData[0].id, true, true);
-                                    $('#bureau_id').append(option).trigger('change');
-                                }
-                            }
-                        });
+                success: function(response) {
+                    if (response && response.bureau) {
+                        const bureau = response.bureau;
+                        $('#bureau_id').html('<option value="' + bureau.id + '" selected>' + bureau.text + '</option>');
+                    } else {
+                        $('#bureau_id').html('<option value="">Aucun bureau assigné</option>');
                     }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error loading bureau:', error);
+                    $('#bureau_id').html('<option value="">Erreur de chargement</option>');
                 }
             });
-        } else {
-            // Réinitialiser le bureau si pas d'employé sélectionné
-            $('#bureau_id').val(null).trigger('change');
         }
     });
 
