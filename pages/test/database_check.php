@@ -149,7 +149,13 @@ require_once __DIR__ . '/../../includes/navbar.php';
                     <p class="small">Testez les APIs pour vérifier qu'elles retournent des données:</p>
                     <div class="d-grid gap-2">
                         <a href="<?php echo BASE_URL; ?>/pages/test/api_test.php" class="btn btn-outline-primary btn-sm">
-                            <i class="bi bi-box-arrow-up-right"></i> Page de test des APIs
+                            <i class="bi bi-box-arrow-up-right"></i> Test APIs (ancien)
+                        </a>
+                        <a href="<?php echo BASE_URL; ?>/pages/test/api_direct_test.php" class="btn btn-outline-success btn-sm">
+                            <i class="bi bi-code-square"></i> Test APIs Direct
+                        </a>
+                        <a href="<?php echo BASE_URL; ?>/pages/test/simple_select_test.php" class="btn btn-outline-warning btn-sm">
+                            <i class="bi bi-list-check"></i> Test Select avec Debug
                         </a>
                     </div>
                 </div>
