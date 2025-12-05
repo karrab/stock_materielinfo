@@ -102,13 +102,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // Mise à jour stock article
                 $sql = "UPDATE articles
-                        SET qte_sortie = qte_sortie + :qte,
-                            qte_disponible = qte_disponible - :qte
-                        WHERE id = :article_id";
+                        SET qte_sortie = qte_sortie + ?,
+                            qte_disponible = qte_disponible - ?
+                        WHERE id = ?";
 
                 $db->prepare($sql);
-                $db->bind(':qte', $qte);
-                $db->bind(':article_id', $article_id);
+                $db->bind(1, $qte);
+                $db->bind(2, $qte);
+                $db->bind(3, $article_id);
                 $db->execute();
             }
 
