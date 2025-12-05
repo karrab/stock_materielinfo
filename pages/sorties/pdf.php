@@ -15,7 +15,7 @@ if (empty($id)) {
 
 try {
     $pdf = new PDF();
-    $pdf->generateBonEntree($id);
+    $pdf->generateBonSortie($id);
 } catch (Exception $e) {
     $_SESSION['error'] = 'Erreur lors de la génération du PDF: ' . $e->getMessage();
     header('Location: ' . BASE_URL . '/pages/sorties/view.php?id=' . $id);

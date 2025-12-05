@@ -1,12 +1,30 @@
 <?php
-$page_title = 'Détails du sortie';
+$page_title = 'Détails de la sortie';
 require_once __DIR__ . '/../../includes/header.php';
 
 $db = Database::getInstance();
 $id = $_GET['id'] ?? 0;
 
-// Récupération du sortie
-$db->prepare("SELECT * FROM sorties WHERE id = :id");
+// Récupération de la sortie avec les informations liées
+$sql = "SELECT s.*,
+               serv.nom as service_nom,
+               emp.nom as employe_nom, emp.prenom as employe_prenom,
+               sa.nom as service_affectation_nom,
+               ea.nom as employe_affectation_nom, ea.prenom as employe_affectation_prenom,
+               b.nom as bureau_nom,
+               a.nom as armoire_nom,
+               u.nom as user_nom
+        FROM sorties s
+        LEFT JOIN services serv ON s.service_id = serv.id
+        LEFT JOIN employes emp ON s.employe_id = emp.id
+        LEFT JOIN services sa ON s.service_affectation_id = sa.id
+        LEFT JOIN employes ea ON s.employe_affectation_id = ea.id
+        LEFT JOIN bureaux b ON s.bureau_id = b.id
+        LEFT JOIN armoires a ON s.armoire_id = a.id
+        LEFT JOIN users u ON s.user_id = u.id
+        WHERE s.id = :id";
+
+$db->prepare($sql);
 $db->bind(':id', $id);
 $sortie = $db->fetch();
 
@@ -16,19 +34,17 @@ if (!$sortie) {
     exit;
 }
 
-// Statistiques
-$db->prepare("SELECT COUNT(*) as count FROM employes WHERE sortie_id = :id AND actif = 1");
+// Récupération des lignes de sortie
+$db->prepare("SELECT * FROM ligne_sorties WHERE sortie_id = :id ORDER BY id");
 $db->bind(':id', $id);
-$nb_employes = $db->fetch()['count'];
+$lignes = $db->fetchAll();
 
-$db->prepare("SELECT COUNT(*) as count FROM bureaux WHERE sortie_id = :id");
-$db->bind(':id', $id);
-$nb_bureaux = $db->fetch()['count'];
-
-// Liste des employés
-$db->prepare("SELECT * FROM employes WHERE sortie_id = :id AND actif = 1 ORDER BY nom, prenom");
-$db->bind(':id', $id);
-$employes = $db->fetchAll();
+// Calcul du total
+$total_articles = count($lignes);
+$total_quantite = 0;
+foreach ($lignes as $ligne) {
+    $total_quantite += $ligne['qte_sortie'];
+}
 ?>
 
 <?php require_once __DIR__ . '/../../includes/navbar.php'; ?>
@@ -38,17 +54,22 @@ $employes = $db->fetchAll();
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h2><i class="bi bi-box-arrow-up"></i> Détails du sortie</h2>
+                    <h2><i class="bi bi-box-arrow-up"></i> Détails de la sortie #<?php echo $sortie['id']; ?></h2>
                     <nav aria-label="breadcrumb">
                         <ol class="breadcrumb">
                             <li class="breadcrumb-item"><a href="<?php echo BASE_URL; ?>/index.php">Accueil</a></li>
                             <li class="breadcrumb-item"><a href="<?php echo BASE_URL; ?>/pages/sorties/index.php">Sorties</a></li>
-                            <li class="breadcrumb-item active">Détails</li>
+                            <li class="breadcrumb-item active">Détails #<?php echo $sortie['id']; ?></li>
                         </ol>
                     </nav>
                 </div>
                 <div class="no-print">
-                    <a href="<?php echo BASE_URL; ?>/pages/sorties/edit.php?id=<?php echo $id; ?>" class="btn btn-warning">
+                    <a href="<?php echo BASE_URL; ?>/pages/sorties/pdf.php?id=<?php echo $id; ?>"
+                       class="btn btn-danger" target="_blank">
+                        <i class="bi bi-file-pdf"></i> PDF
+                    </a>
+                    <a href="<?php echo BASE_URL; ?>/pages/sorties/edit.php?id=<?php echo $id; ?>"
+                       class="btn btn-warning">
                         <i class="bi bi-pencil"></i> Modifier
                     </a>
                     <button onclick="window.print()" class="btn btn-secondary">
@@ -65,114 +86,179 @@ $employes = $db->fetchAll();
     <div class="row">
         <!-- Informations principales -->
         <div class="col-md-8">
+            <!-- Informations demandeur -->
             <div class="card mb-3">
                 <div class="card-header">
-                    <i class="bi bi-info-circle"></i> Informations générales
+                    <i class="bi bi-person"></i> Informations demandeur
                 </div>
                 <div class="card-body">
-                    <table class="table table-bordered">
+                    <table class="table table-bordered mb-0">
                         <tr>
-                            <th width="200">ID</th>
-                            <td><?php echo $sortie['id']; ?></td>
+                            <th width="200">Service</th>
+                            <td><?php echo htmlspecialchars($sortie['service_nom']); ?></td>
                         </tr>
                         <tr>
-                            <th>Nom</th>
-                            <td><strong><?php echo htmlspecialchars($sortie['nom']); ?></strong></td>
+                            <th>Employé</th>
+                            <td><?php echo htmlspecialchars($sortie['employe_nom'] . ' ' . $sortie['employe_prenom']); ?></td>
                         </tr>
                         <tr>
-                            <th>Notes</th>
-                            <td><?php echo nl2br(htmlspecialchars($sortie['notes'] ?? '-')); ?></td>
-                        </tr>
-                        <tr>
-                            <th>Date de création</th>
-                            <td><?php echo date('d/m/Y à H:i', strtotime($sortie['created_at'])); ?></td>
-                        </tr>
-                        <tr>
-                            <th>Dernière modification</th>
-                            <td><?php echo date('d/m/Y à H:i', strtotime($sortie['updated_at'])); ?></td>
+                            <th>Date de sortie</th>
+                            <td><strong><?php echo date('d/m/Y', strtotime($sortie['date'])); ?></strong></td>
                         </tr>
                     </table>
                 </div>
             </div>
 
-            <!-- Liste des employés -->
-            <div class="card">
+            <!-- Informations affectation -->
+            <?php if ($sortie['service_affectation_id'] || $sortie['employe_affectation_id'] || $sortie['bureau_id'] || $sortie['armoire_id']): ?>
+            <div class="card mb-3">
                 <div class="card-header">
-                    <i class="bi bi-people"></i> Employés du sortie (<?php echo $nb_employes; ?>)
+                    <i class="bi bi-geo-alt"></i> Informations d'affectation
                 </div>
                 <div class="card-body">
-                    <?php if (count($employes) > 0): ?>
+                    <table class="table table-bordered mb-0">
+                        <?php if ($sortie['service_affectation_nom']): ?>
+                        <tr>
+                            <th width="200">Service affectation</th>
+                            <td><?php echo htmlspecialchars($sortie['service_affectation_nom']); ?></td>
+                        </tr>
+                        <?php endif; ?>
+                        <?php if ($sortie['employe_affectation_nom']): ?>
+                        <tr>
+                            <th>Employé affectation</th>
+                            <td><?php echo htmlspecialchars($sortie['employe_affectation_nom'] . ' ' . $sortie['employe_affectation_prenom']); ?></td>
+                        </tr>
+                        <?php endif; ?>
+                        <?php if ($sortie['bureau_nom']): ?>
+                        <tr>
+                            <th>Bureau</th>
+                            <td><?php echo htmlspecialchars($sortie['bureau_nom']); ?></td>
+                        </tr>
+                        <?php endif; ?>
+                        <?php if ($sortie['armoire_nom']): ?>
+                        <tr>
+                            <th>Armoire</th>
+                            <td><?php echo htmlspecialchars($sortie['armoire_nom']); ?></td>
+                        </tr>
+                        <?php endif; ?>
+                    </table>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <!-- Liste des articles -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <i class="bi bi-box-seam"></i> Articles sortis (<?php echo $total_articles; ?>)
+                </div>
+                <div class="card-body">
+                    <?php if (count($lignes) > 0): ?>
                         <div class="table-responsive">
-                            <table class="table table-sm table-hover">
-                                <thead>
+                            <table class="table table-bordered table-hover">
+                                <thead class="table-light">
                                     <tr>
-                                        <th>Matricule</th>
-                                        <th>Nom</th>
-                                        <th>Prénom</th>
-                                        <th>Email</th>
-                                        <th>Téléphone</th>
-                                        <th class="no-print">Actions</th>
+                                        <th width="15%">Code article</th>
+                                        <th width="55%">Désignation</th>
+                                        <th width="30%" class="text-end">Quantité sortie</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php foreach ($employes as $employe): ?>
+                                    <?php foreach ($lignes as $ligne): ?>
                                         <tr>
-                                            <td><code><?php echo htmlspecialchars($employe['matricule']); ?></code></td>
-                                            <td><?php echo htmlspecialchars($employe['nom']); ?></td>
-                                            <td><?php echo htmlspecialchars($employe['prenom']); ?></td>
-                                            <td><?php echo htmlspecialchars($employe['mail'] ?? '-'); ?></td>
-                                            <td><?php echo htmlspecialchars($employe['tel1'] ?? '-'); ?></td>
-                                            <td class="no-print">
-                                                <a href="<?php echo BASE_URL; ?>/pages/employes/view.php?id=<?php echo $employe['id']; ?>"
-                                                   class="btn btn-sm btn-info">
-                                                    <i class="bi bi-eye"></i>
-                                                </a>
+                                            <td><code><?php echo htmlspecialchars($ligne['code_article']); ?></code></td>
+                                            <td><?php echo htmlspecialchars($ligne['designation']); ?></td>
+                                            <td class="text-end">
+                                                <strong><?php echo number_format($ligne['qte_sortie'], 2, ',', ' '); ?></strong>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
                                 </tbody>
+                                <tfoot class="table-light">
+                                    <tr>
+                                        <th colspan="2" class="text-end">Total quantité :</th>
+                                        <th class="text-end"><?php echo number_format($total_quantite, 2, ',', ' '); ?></th>
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
                     <?php else: ?>
-                        <p class="text-muted text-center mb-0">Aucun employé dans ce sortie.</p>
+                        <p class="text-muted text-center mb-0">Aucun article dans cette sortie.</p>
                     <?php endif; ?>
                 </div>
             </div>
+
+            <!-- Notes -->
+            <?php if (!empty($sortie['notes'])): ?>
+            <div class="card mb-3">
+                <div class="card-header">
+                    <i class="bi bi-sticky"></i> Notes
+                </div>
+                <div class="card-body">
+                    <p class="mb-0"><?php echo nl2br(htmlspecialchars($sortie['notes'])); ?></p>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
 
-        <!-- Statistiques -->
+        <!-- Panneau latéral -->
         <div class="col-md-4">
+            <!-- Statistiques -->
             <div class="card mb-3">
                 <div class="card-header">
                     <i class="bi bi-graph-up"></i> Statistiques
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <h5 class="text-primary"><?php echo $nb_employes; ?></h5>
-                        <small class="text-muted">Employé(s)</small>
+                        <h4 class="text-primary mb-0"><?php echo $total_articles; ?></h4>
+                        <small class="text-muted">Article(s) différent(s)</small>
                     </div>
-                    <div class="mb-3">
-                        <h5 class="text-success"><?php echo $nb_bureaux; ?></h5>
-                        <small class="text-muted">Bureau(x)</small>
+                    <div class="mb-0">
+                        <h4 class="text-success mb-0"><?php echo number_format($total_quantite, 2, ',', ' '); ?></h4>
+                        <small class="text-muted">Quantité totale sortie</small>
                     </div>
                 </div>
             </div>
 
-            <div class="card no-print">
+            <!-- Fichier joint -->
+            <?php if (!empty($sortie['fichier'])): ?>
+            <div class="card mb-3">
                 <div class="card-header">
-                    <i class="bi bi-link"></i> Liens rapides
+                    <i class="bi bi-paperclip"></i> Fichier joint
                 </div>
                 <div class="card-body">
-                    <div class="d-grid gap-2">
-                        <a href="<?php echo BASE_URL; ?>/pages/employes/create.php?sortie_id=<?php echo $id; ?>"
-                           class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-plus-circle"></i> Ajouter un employé
-                        </a>
-                        <a href="<?php echo BASE_URL; ?>/pages/employes/index.php?sortie_id=<?php echo $id; ?>"
-                           class="btn btn-sm btn-outline-secondary">
-                            <i class="bi bi-list"></i> Voir tous les employés
-                        </a>
-                    </div>
+                    <a href="<?php echo UPLOAD_SORTIES_URL . '/' . $sortie['fichier']; ?>"
+                       class="btn btn-sm btn-outline-primary w-100"
+                       target="_blank">
+                        <i class="bi bi-download"></i> Télécharger le fichier
+                    </a>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <!-- Informations système -->
+            <div class="card">
+                <div class="card-header">
+                    <i class="bi bi-info-circle"></i> Informations système
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <th width="100">ID</th>
+                            <td><code>#<?php echo $sortie['id']; ?></code></td>
+                        </tr>
+                        <tr>
+                            <th>Créé par</th>
+                            <td><?php echo htmlspecialchars($sortie['user_nom'] ?? 'N/A'); ?></td>
+                        </tr>
+                        <tr>
+                            <th>Créé le</th>
+                            <td><?php echo date('d/m/Y à H:i', strtotime($sortie['created_at'])); ?></td>
+                        </tr>
+                        <tr>
+                            <th>Modifié le</th>
+                            <td><?php echo date('d/m/Y à H:i', strtotime($sortie['updated_at'])); ?></td>
+                        </tr>
+                    </table>
                 </div>
             </div>
         </div>
