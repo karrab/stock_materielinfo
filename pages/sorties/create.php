@@ -288,8 +288,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 let articleLineCounter = 0;
 
 $(document).ready(function() {
-    initServiceSelect('#service_id');
-    initServiceSelect('#service_affectation_id');
+    // Charger les services initialement
+    loadServices();
+
+    // Initialiser Select2 sur les autres champs
     initBureauSelect('#bureau_id');
     initArmoireSelect('#armoire_id');
 
@@ -387,6 +389,39 @@ $(document).ready(function() {
 
     addArticleLine();
 });
+
+// Fonction pour charger tous les services
+function loadServices() {
+    $.ajax({
+        url: BASE_URL + '/api/services.php',
+        data: { search: '' },
+        dataType: 'json',
+        success: function(data) {
+            if (data && data.length > 0) {
+                // Remplir service_id (demandeur)
+                $('#service_id').html('<option value="">Sélectionner un service...</option>');
+                data.forEach(function(service) {
+                    $('#service_id').append(new Option(service.text, service.id));
+                });
+
+                // Remplir service_affectation_id
+                $('#service_affectation_id').html('<option value="">Aucun</option>');
+                data.forEach(function(service) {
+                    $('#service_affectation_id').append(new Option(service.text, service.id));
+                });
+            } else {
+                $('#service_id').html('<option value="">Aucun service disponible</option>');
+                $('#service_affectation_id').html('<option value="">Aucun</option>');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error loading services:', error);
+            console.error('Response:', xhr.responseText);
+            $('#service_id').html('<option value="">Erreur de chargement</option>');
+            $('#service_affectation_id').html('<option value="">Erreur de chargement</option>');
+        }
+    });
+}
 
 function addArticleLine() {
     articleLineCounter++;

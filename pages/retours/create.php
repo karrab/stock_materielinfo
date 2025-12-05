@@ -233,7 +233,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 let articleLineCounter = 0;
 
 $(document).ready(function() {
-    initServiceSelect('#service_id');
+    // Charger les services initialement
+    loadServices();
 
     // Charger employés quand service change
     $('#service_id').on('change', function() {
@@ -267,6 +268,30 @@ $(document).ready(function() {
 
     addArticleLine();
 });
+
+// Fonction pour charger tous les services
+function loadServices() {
+    $.ajax({
+        url: BASE_URL + '/api/services.php',
+        data: { search: '' },
+        dataType: 'json',
+        success: function(data) {
+            if (data && data.length > 0) {
+                $('#service_id').html('<option value="">Sélectionner un service...</option>');
+                data.forEach(function(service) {
+                    $('#service_id').append(new Option(service.text, service.id));
+                });
+            } else {
+                $('#service_id').html('<option value="">Aucun service disponible</option>');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error loading services:', error);
+            console.error('Response:', xhr.responseText);
+            $('#service_id').html('<option value="">Erreur de chargement</option>');
+        }
+    });
+}
 
 function addArticleLine() {
     articleLineCounter++;

@@ -255,12 +255,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 let articleLineCounter = 0;
 
 $(document).ready(function() {
-    // Initialiser Select2 pour le fournisseur
-    initFournisseurSelect('#fournisseur_id');
+    // Charger les fournisseurs initialement
+    loadFournisseurs();
 
     // Ajouter une première ligne d'article
     addArticleLine();
 });
+
+// Fonction pour charger tous les fournisseurs
+function loadFournisseurs() {
+    $.ajax({
+        url: BASE_URL + '/api/fournisseurs.php',
+        data: { search: '' },
+        dataType: 'json',
+        success: function(data) {
+            if (data && data.length > 0) {
+                $('#fournisseur_id').html('<option value="">Sélectionner un fournisseur...</option>');
+                data.forEach(function(fournisseur) {
+                    $('#fournisseur_id').append(new Option(fournisseur.text, fournisseur.id));
+                });
+            } else {
+                $('#fournisseur_id').html('<option value="">Aucun fournisseur disponible</option>');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error loading fournisseurs:', error);
+            console.error('Response:', xhr.responseText);
+            $('#fournisseur_id').html('<option value="">Erreur de chargement</option>');
+        }
+    });
+}
 
 function addArticleLine() {
     articleLineCounter++;
