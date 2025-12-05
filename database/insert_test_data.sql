@@ -31,12 +31,18 @@ INSERT INTO `employes` (`matricule`, `nom`, `prenom`, `service_id`, `mail`, `tel
 ('EMP004', 'DURAND', 'Sophie', @service_it, 's.durand@entreprise.com', '0613141516', 1)
 ON DUPLICATE KEY UPDATE matricule=matricule;
 
--- Insérer des bureaux de test
-INSERT INTO `bureaux` (`code_local`, `service_id`) VALUES
-('B001', @service_direction),
-('B002', @service_rh),
-('B003', @service_it),
-('B004', @service_it)
+-- Récupérer les IDs des employés
+SET @emp_dupont = (SELECT id FROM employes WHERE matricule = 'EMP001' LIMIT 1);
+SET @emp_martin = (SELECT id FROM employes WHERE matricule = 'EMP002' LIMIT 1);
+SET @emp_bernard = (SELECT id FROM employes WHERE matricule = 'EMP003' LIMIT 1);
+SET @emp_durand = (SELECT id FROM employes WHERE matricule = 'EMP004' LIMIT 1);
+
+-- Insérer des bureaux de test avec employés assignés
+INSERT INTO `bureaux` (`code_local`, `service_id`, `employe_id`) VALUES
+('B001', @service_direction, @emp_dupont),
+('B002', @service_rh, @emp_martin),
+('B003', @service_it, @emp_bernard),
+('B004', @service_it, @emp_durand)
 ON DUPLICATE KEY UPDATE code_local=code_local;
 
 -- Insérer des armoires de test
@@ -54,6 +60,34 @@ INSERT INTO `equipes_inventaire` (`nom`, `description`) VALUES
 ('Équipe Gamma', 'Équipe spécialisée matériel IT')
 ON DUPLICATE KEY UPDATE nom=nom;
 
+-- Insérer des catégories d'articles
+INSERT INTO `categories` (`nom`, `description`) VALUES
+('Informatique', 'Matériel et fournitures informatiques'),
+('Bureautique', 'Fournitures de bureau'),
+('Mobilier', 'Meubles et équipements'),
+('Consommables', 'Produits consommables')
+ON DUPLICATE KEY UPDATE nom=nom;
+
+-- Récupérer les IDs des catégories
+SET @cat_informatique = (SELECT id FROM categories WHERE nom = 'Informatique' LIMIT 1);
+SET @cat_bureautique = (SELECT id FROM categories WHERE nom = 'Bureautique' LIMIT 1);
+SET @cat_mobilier = (SELECT id FROM categories WHERE nom = 'Mobilier' LIMIT 1);
+SET @cat_consommables = (SELECT id FROM categories WHERE nom = 'Consommables' LIMIT 1);
+
+-- Insérer des articles de test
+INSERT INTO `articles` (`reference`, `designation`, `categorie_id`, `qte_disponible`, `qte_min`, `unite`, `actif`) VALUES
+('PC-001', 'Ordinateur portable Dell Latitude', @cat_informatique, 10, 2, 'Unité', 1),
+('PC-002', 'Souris sans fil Logitech', @cat_informatique, 25, 5, 'Unité', 1),
+('PC-003', 'Clavier USB standard', @cat_informatique, 20, 5, 'Unité', 1),
+('PC-004', 'Écran 24 pouces HP', @cat_informatique, 8, 2, 'Unité', 1),
+('BUR-001', 'Ramette papier A4', @cat_bureautique, 50, 10, 'Ramette', 1),
+('BUR-002', 'Stylo bille bleu', @cat_bureautique, 100, 20, 'Boîte', 1),
+('BUR-003', 'Classeur à levier', @cat_bureautique, 30, 10, 'Unité', 1),
+('MOB-001', 'Chaise de bureau ergonomique', @cat_mobilier, 15, 3, 'Unité', 1),
+('MOB-002', 'Bureau 160x80 cm', @cat_mobilier, 5, 1, 'Unité', 1),
+('CONS-001', 'Cartouche d\'encre noir HP', @cat_consommables, 40, 10, 'Unité', 1)
+ON DUPLICATE KEY UPDATE reference=reference;
+
 -- Message de confirmation
 SELECT '✅ Données de test insérées avec succès !' as message;
 
@@ -68,4 +102,8 @@ SELECT 'Bureaux', COUNT(*) FROM bureaux
 UNION ALL
 SELECT 'Armoires', COUNT(*) FROM armoires
 UNION ALL
-SELECT 'Équipes', COUNT(*) FROM equipes_inventaire;
+SELECT 'Équipes', COUNT(*) FROM equipes_inventaire
+UNION ALL
+SELECT 'Catégories', COUNT(*) FROM categories
+UNION ALL
+SELECT 'Articles', COUNT(*) FROM articles WHERE actif = 1;
