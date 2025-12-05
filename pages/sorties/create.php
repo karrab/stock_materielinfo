@@ -162,13 +162,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="service_id" class="form-label required">Service</label>
-                                <select class="form-select select2" id="service_id" name="service_id" required>
+                                <select class="form-select" id="service_id" name="service_id" required>
                                     <option value="">Sélectionner...</option>
                                 </select>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="employe_id" class="form-label required">Employé</label>
-                                <select class="form-select select2" id="employe_id" name="employe_id" required>
+                                <select class="form-select" id="employe_id" name="employe_id" required>
                                     <option value="">Sélectionner...</option>
                                 </select>
                             </div>
@@ -187,13 +187,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="service_affectation_id" class="form-label">Service affectation</label>
-                                <select class="form-select select2" id="service_affectation_id" name="service_affectation_id">
+                                <select class="form-select" id="service_affectation_id" name="service_affectation_id">
                                     <option value="">Aucun</option>
                                 </select>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="employe_affectation_id" class="form-label">Employé affectation</label>
-                                <select class="form-select select2" id="employe_affectation_id" name="employe_affectation_id">
+                                <select class="form-select" id="employe_affectation_id" name="employe_affectation_id">
                                     <option value="">Aucun</option>
                                 </select>
                             </div>
@@ -201,14 +201,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="bureau_id" class="form-label">Bureau</label>
-                                <select class="form-select select2" id="bureau_id" name="bureau_id">
+                                <select class="form-select" id="bureau_id" name="bureau_id">
                                     <option value="">Aucun</option>
                                 </select>
                                 <small class="text-muted">Se remplit automatiquement avec le bureau de l'employé affecté</small>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="armoire_id" class="form-label">Armoire</label>
-                                <select class="form-select select2" id="armoire_id" name="armoire_id">
+                                <select class="form-select" id="armoire_id" name="armoire_id">
                                     <option value="">Aucune</option>
                                 </select>
                             </div>
@@ -284,12 +284,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </form>
 </div>
 
+<?php require_once __DIR__ . '/../../includes/footer.php'; ?>
+
 <script>
 let articleLineCounter = 0;
 
 $(document).ready(function() {
-    // Charger les services initialement
-    loadServices();
+    // Initialiser Select2 avec AJAX pour les services
+    initServiceSelect('#service_id', 'Sélectionner un service...');
+    initServiceSelect('#service_affectation_id', 'Sélectionner un service...');
 
     // Initialiser Select2 sur les autres champs
     initBureauSelect('#bureau_id');
@@ -390,39 +393,6 @@ $(document).ready(function() {
     addArticleLine();
 });
 
-// Fonction pour charger tous les services
-function loadServices() {
-    $.ajax({
-        url: BASE_URL + '/api/services.php',
-        data: { search: '' },
-        dataType: 'json',
-        success: function(data) {
-            if (data && data.length > 0) {
-                // Remplir service_id (demandeur)
-                $('#service_id').html('<option value="">Sélectionner un service...</option>');
-                data.forEach(function(service) {
-                    $('#service_id').append(new Option(service.text, service.id));
-                });
-
-                // Remplir service_affectation_id
-                $('#service_affectation_id').html('<option value="">Aucun</option>');
-                data.forEach(function(service) {
-                    $('#service_affectation_id').append(new Option(service.text, service.id));
-                });
-            } else {
-                $('#service_id').html('<option value="">Aucun service disponible</option>');
-                $('#service_affectation_id').html('<option value="">Aucun</option>');
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('Error loading services:', error);
-            console.error('Response:', xhr.responseText);
-            $('#service_id').html('<option value="">Erreur de chargement</option>');
-            $('#service_affectation_id').html('<option value="">Erreur de chargement</option>');
-        }
-    });
-}
-
 function addArticleLine() {
     articleLineCounter++;
     const row = `
@@ -484,5 +454,3 @@ function removeArticleLine(lineId) {
     }
 }
 </script>
-
-<?php require_once __DIR__ . '/../../includes/footer.php'; ?>
