@@ -11,7 +11,7 @@ $sql = "SELECT s.*,
                emp.nom as employe_nom, emp.prenom as employe_prenom,
                sa.nom as service_affectation_nom,
                ea.nom as employe_affectation_nom, ea.prenom as employe_affectation_prenom,
-               b.nom as bureau_nom,
+               b.code_local as bureau_nom,
                a.nom as armoire_nom,
                u.nom as user_nom
         FROM sorties s
