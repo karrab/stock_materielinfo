@@ -205,9 +205,9 @@ $etat_config = match($inventaire['etat']) {
                         <div class="alert alert-info">
                             <i class="bi bi-info-circle"></i>
                             <strong>Saisie des quantités physiques :</strong>
-                            Entrez le stock compté réellement. Les modifications sont enregistrées automatiquement.
-                            Cliquez sur "Générer les écarts" pour calculer les différences.
+                            Entrez le stock compté réellement, puis cliquez sur <strong>"💾 Enregistrer les quantités"</strong> en bas du tableau.
                         </div>
+                        <form method="POST" action="<?php echo BASE_URL; ?>/pages/inventaires/save_qte_physique.php?id=<?php echo $id; ?>" id="formQtePhysique">
                     <?php endif; ?>
 
                     <div class="table-responsive">
@@ -256,11 +256,13 @@ $etat_config = match($inventaire['etat']) {
                                             </td>
                                             <td class="text-end">
                                                 <?php if ($inventaire['etat'] == 'en_cours'): ?>
+                                                    <input type="hidden" name="ligne_id[]" value="<?php echo $ligne['id']; ?>">
                                                     <input type="number"
                                                            class="form-control form-control-sm text-end qte-physique"
-                                                           data-ligne-id="<?php echo $ligne['id']; ?>"
+                                                           name="qte_physique[]"
                                                            value="<?php echo $ligne['qte_physique']; ?>"
-                                                           step="0.01" min="0">
+                                                           step="0.01" min="0"
+                                                           placeholder="0.00">
                                                 <?php else: ?>
                                                     <span class="badge bg-primary"><?php echo number_format($ligne['qte_physique'], 2, ',', ' '); ?></span>
                                                 <?php endif; ?>
@@ -301,6 +303,18 @@ $etat_config = match($inventaire['etat']) {
                             </tbody>
                         </table>
                     </div>
+
+                    <?php if ($inventaire['etat'] == 'en_cours'): ?>
+                        <div class="mt-3 text-center">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-save"></i> 💾 Enregistrer les quantités physiques
+                            </button>
+                            <button type="reset" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i> Réinitialiser
+                            </button>
+                        </div>
+                        </form>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -461,95 +475,23 @@ $etat_config = match($inventaire['etat']) {
 <?php if ($inventaire['etat'] == 'en_cours'): ?>
 <script>
 $(document).ready(function() {
-    // Auto-save qte_physique on change with visual feedback
-    $('.qte-physique').on('change', function() {
-        const ligneId = $(this).data('ligne-id');
-        const qte = $(this).val();
-        const input = $(this);
-
-        // Visual feedback: processing
-        input.prop('disabled', true);
-        input.addClass('border-warning');
-
-        $.ajax({
-            url: BASE_URL + '/pages/inventaires/update_qte_physique.php',
-            method: 'POST',
-            dataType: 'json',
-            data: {
-                ligne_id: ligneId,
-                qte_physique: qte
-            },
-            success: function(response) {
-                console.log('Response:', response);
-
-                // Vérifier si la mise à jour a réussi
-                if (response.success) {
-                    // Success feedback
-                    input.removeClass('border-warning is-invalid');
-                    input.addClass('is-valid border-success');
-
-                    // Mettre à jour l'écart affiché
-                    const row = input.closest('tr');
-                    const ecartCell = row.find('td').eq(4);
-                    const ecart = parseFloat(response.ecart);
-
-                    let ecartText = ecart.toFixed(2).replace('.', ',');
-                    if (ecart > 0) ecartText = '+' + ecartText;
-                    else if (ecart === 0) ecartText = '0';
-
-                    ecartCell.text(ecartText);
-                    ecartCell.removeClass('text-danger text-success text-muted');
-                    if (ecart < 0) ecartCell.addClass('text-danger fw-bold');
-                    else if (ecart > 0) ecartCell.addClass('text-success fw-bold');
-                    else ecartCell.addClass('text-muted');
-
-                    // Mettre à jour l'icône d'état
-                    const iconCell = row.find('td').eq(5);
-                    iconCell.html(ecart < 0 ? '<i class="bi-arrow-down-circle text-danger"></i>' :
-                                  ecart > 0 ? '<i class="bi-arrow-up-circle text-success"></i>' :
-                                  '<i class="bi-check-circle text-success"></i>');
-
-                    setTimeout(() => {
-                        input.removeClass('is-valid border-success');
-                        input.prop('disabled', false);
-                    }, 1500);
-                } else {
-                    // Erreur retournée par le serveur
-                    input.removeClass('border-warning is-valid');
-                    input.addClass('is-invalid border-danger');
-                    input.prop('disabled', false);
-
-                    console.error('Erreur serveur:', response.error);
-                    alert('❌ Erreur: ' + (response.error || 'Erreur inconnue') +
-                          (response.debug ? '\n\nDébug: ' + response.debug : ''));
-                }
-            },
-            error: function(xhr, status, error) {
-                // Error feedback
-                input.removeClass('border-warning is-valid');
-                input.addClass('is-invalid border-danger');
-                input.prop('disabled', false);
-
-                console.error('AJAX Error:', xhr.responseText);
-                alert('❌ Erreur lors de la mise à jour.\n\n' +
-                      'Status: ' + status + '\n' +
-                      'Error: ' + error + '\n\n' +
-                      'Réponse serveur: ' + xhr.responseText.substring(0, 200));
-            }
-        });
-    });
-
-    // Enter key to move to next input
+    // Navigation au clavier: touche Entrée pour passer au champ suivant
     $('.qte-physique').on('keypress', function(e) {
         if (e.which === 13) { // Enter key
             e.preventDefault();
-            $(this).trigger('change');
-
             const nextInput = $(this).closest('tr').next('tr').find('.qte-physique');
             if (nextInput.length) {
                 nextInput.focus().select();
+            } else {
+                // Dernier champ: soumettre le formulaire
+                $('#formQtePhysique').submit();
             }
         }
+    });
+
+    // Sélectionner le texte au focus pour faciliter la saisie
+    $('.qte-physique').on('focus', function() {
+        $(this).select();
     });
 });
 </script>
