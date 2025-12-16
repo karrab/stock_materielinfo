@@ -12,6 +12,33 @@ if (!$auth->isLoggedIn()) {
 
 $db = Database::getInstance();
 
+// Si un ID spécifique est demandé
+if (isset($_GET['id']) && !empty($_GET['id'])) {
+    $id = intval($_GET['id']);
+    $sql = "SELECT id, code_article, designation, qte_disponible, stock_min, stock_max
+            FROM articles
+            WHERE id = :id AND actif = 1";
+
+    $stmt = $db->getConnection()->prepare($sql);
+    $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+    $stmt->execute();
+    $item = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($item) {
+        $result = [[
+            'id' => $item['id'],
+            'text' => $item['code_article'] . ' - ' . $item['designation'],
+            'qte_disponible' => $item['qte_disponible'],
+            'stock_min' => $item['stock_min'],
+            'stock_max' => $item['stock_max']
+        ]];
+        echo json_encode($result);
+    } else {
+        echo json_encode([]);
+    }
+    exit;
+}
+
 // Cas spécial: retourner TOUS les articles actifs (pour inventaires)
 if (isset($_GET['all_active']) && $_GET['all_active'] == 1) {
     $sql = "SELECT id, code_article, designation, qte_disponible
