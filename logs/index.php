@@ -1,0 +1,4 @@
+<?php
+// Forbidden
+http_response_code(403);
+exit('Accès interdit');

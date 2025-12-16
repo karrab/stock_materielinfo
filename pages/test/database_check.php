@@ -160,6 +160,20 @@ require_once __DIR__ . '/../../includes/navbar.php';
                     </div>
                 </div>
             </div>
+
+            <div class="card mt-3">
+                <div class="card-header bg-danger text-white">
+                    <i class="bi bi-file-earmark-text"></i> Logs & Debug
+                </div>
+                <div class="card-body">
+                    <p class="small">Consultez les logs pour déboguer:</p>
+                    <div class="d-grid">
+                        <a href="<?php echo BASE_URL; ?>/pages/test/view_logs.php" class="btn btn-outline-danger btn-sm">
+                            <i class="bi bi-bug"></i> Voir Logs qte_physiques
+                        </a>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
