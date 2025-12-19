@@ -1,6 +1,6 @@
 <?php
 /**
- * Classe PDF - Génération de documents PDF avec Dompdf
+ * Classe PDF - Génération de documents PDF avec design Bootstrap 5
  */
 
 // Charger Dompdf si installé via Composer
@@ -62,14 +62,15 @@ class PDF {
     }
 
     /**
-     * Template HTML complet avec styles
+     * Template HTML complet avec styles Bootstrap 5
      */
     private function getTemplate($content) {
         $logoPath = IMAGES_PATH . '/' . ($this->parametres['logo'] ?? 'logo.png');
         $logoData = '';
 
         if (file_exists($logoPath)) {
-            $logoData = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
+            $type = pathinfo($logoPath, PATHINFO_EXTENSION);
+            $logoData = 'data:image/' . $type . ';base64,' . base64_encode(file_get_contents($logoPath));
         }
 
         return '
@@ -78,6 +79,10 @@ class PDF {
         <head>
             <meta charset="UTF-8">
             <style>
+                @page {
+                    margin: 15mm 10mm;
+                }
+
                 * {
                     margin: 0;
                     padding: 0;
@@ -86,170 +91,361 @@ class PDF {
 
                 body {
                     font-family: "DejaVu Sans", sans-serif;
-                    font-size: 11pt;
-                    color: #333;
-                    line-height: 1.4;
+                    font-size: 10pt;
+                    color: #212529;
+                    line-height: 1.5;
                 }
 
-                .header {
+                /* En-tête avec design Bootstrap 5 */
+                .header-container {
+                    background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+                    padding: 20px;
+                    margin-bottom: 25px;
+                    border-radius: 8px;
+                    color: white;
+                    position: relative;
+                }
+
+                .header-grid {
+                    display: table;
+                    width: 100%;
+                }
+
+                .header-logo {
+                    display: table-cell;
+                    width: 25%;
+                    vertical-align: middle;
                     text-align: center;
-                    margin-bottom: 30px;
-                    padding-bottom: 20px;
-                    border-bottom: 3px solid #0d6efd;
                 }
 
-                .header img {
-                    max-height: 60px;
-                    margin-bottom: 10px;
+                .header-logo img {
+                    max-height: 70px;
+                    max-width: 100%;
+                    background: white;
+                    padding: 8px;
+                    border-radius: 6px;
                 }
 
-                .header h1 {
-                    font-size: 18pt;
-                    color: #0d6efd;
-                    margin: 10px 0;
+                .header-info {
+                    display: table-cell;
+                    width: 75%;
+                    vertical-align: middle;
+                    padding-left: 20px;
                 }
 
-                .header .info {
+                .header-info h1 {
+                    font-size: 20pt;
+                    font-weight: bold;
+                    margin: 0 0 8px 0;
+                    color: white;
+                    text-transform: uppercase;
+                    letter-spacing: 1px;
+                }
+
+                .header-info .details {
                     font-size: 9pt;
-                    color: #666;
-                    margin-top: 5px;
+                    line-height: 1.4;
+                    opacity: 0.95;
                 }
 
-                .footer {
-                    position: fixed;
-                    bottom: 0;
-                    left: 0;
-                    right: 0;
-                    height: 50px;
-                    text-align: center;
+                .header-info .details div {
+                    margin: 2px 0;
+                }
+
+                /* Badge coin supérieur */
+                .header-badge {
+                    position: absolute;
+                    top: 15px;
+                    right: 15px;
+                    background: rgba(255, 255, 255, 0.2);
+                    padding: 5px 12px;
+                    border-radius: 20px;
                     font-size: 8pt;
-                    color: #666;
-                    border-top: 1px solid #ddd;
-                    padding-top: 10px;
+                    font-weight: bold;
+                    backdrop-filter: blur(10px);
                 }
 
-                .page-number:before {
-                    content: "Page " counter(page);
-                }
-
+                /* Titres */
                 h2 {
                     color: #0d6efd;
                     font-size: 16pt;
-                    margin: 20px 0 15px 0;
-                    padding-bottom: 5px;
-                    border-bottom: 2px solid #0d6efd;
+                    font-weight: bold;
+                    margin: 25px 0 15px 0;
+                    padding: 10px 15px;
+                    background: #e7f1ff;
+                    border-left: 5px solid #0d6efd;
+                    border-radius: 4px;
                 }
 
                 h3 {
-                    color: #333;
-                    font-size: 13pt;
-                    margin: 15px 0 10px 0;
+                    color: #495057;
+                    font-size: 12pt;
+                    font-weight: bold;
+                    margin: 20px 0 12px 0;
+                    padding-bottom: 5px;
+                    border-bottom: 2px solid #dee2e6;
                 }
 
+                /* Boîtes d\'information avec style card Bootstrap */
+                .info-box {
+                    background: #f8f9fa;
+                    border: 1px solid #dee2e6;
+                    border-radius: 6px;
+                    padding: 15px;
+                    margin: 15px 0;
+                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+                }
+
+                .info-box .row {
+                    display: table;
+                    width: 100%;
+                    margin: 8px 0;
+                }
+
+                .info-box .col {
+                    display: table-cell;
+                    width: 50%;
+                    padding: 5px;
+                }
+
+                .info-box .label {
+                    font-weight: 600;
+                    color: #0d6efd;
+                    display: inline-block;
+                    min-width: 140px;
+                }
+
+                .info-box .value {
+                    color: #212529;
+                    font-weight: normal;
+                }
+
+                /* Tables avec style Bootstrap striped */
                 table {
                     width: 100%;
                     border-collapse: collapse;
                     margin: 15px 0;
+                    border-radius: 6px;
+                    overflow: hidden;
+                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                }
+
+                table thead {
+                    background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
                 }
 
                 table thead th {
-                    background-color: #0d6efd;
                     color: white;
-                    padding: 10px;
+                    padding: 12px 10px;
                     text-align: left;
                     font-weight: bold;
                     font-size: 10pt;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
                 }
 
                 table tbody td {
-                    padding: 8px;
-                    border: 1px solid #ddd;
-                    font-size: 10pt;
+                    padding: 10px;
+                    border: 1px solid #dee2e6;
+                    font-size: 9.5pt;
+                }
+
+                table tbody tr:nth-child(odd) {
+                    background-color: #ffffff;
                 }
 
                 table tbody tr:nth-child(even) {
                     background-color: #f8f9fa;
                 }
 
-                .info-box {
-                    background-color: #f8f9fa;
-                    padding: 15px;
-                    margin: 15px 0;
-                    border-left: 4px solid #0d6efd;
+                table tbody tr:hover {
+                    background-color: #e7f1ff;
                 }
 
-                .info-box .label {
+                /* Ligne totale */
+                .total-row {
+                    background: linear-gradient(to right, #e7f1ff, #cfe2ff) !important;
                     font-weight: bold;
+                    font-size: 10.5pt;
+                    border-top: 3px solid #0d6efd !important;
+                }
+
+                .total-row td {
+                    padding: 12px 10px !important;
                     color: #0d6efd;
+                }
+
+                /* Badges Bootstrap 5 */
+                .badge {
                     display: inline-block;
-                    min-width: 150px;
+                    padding: 4px 10px;
+                    font-size: 9pt;
+                    font-weight: 600;
+                    border-radius: 4px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
                 }
 
-                .info-box .value {
-                    color: #333;
+                .badge-primary { background-color: #0d6efd; color: white; }
+                .badge-success { background-color: #198754; color: white; }
+                .badge-warning { background-color: #ffc107; color: #000; }
+                .badge-danger { background-color: #dc3545; color: white; }
+                .badge-info { background-color: #0dcaf0; color: #000; }
+                .badge-secondary { background-color: #6c757d; color: white; }
+
+                /* Signatures */
+                .signatures {
+                    margin-top: 60px;
+                    page-break-inside: avoid;
                 }
 
-                .text-right {
+                .signatures table {
+                    border: none;
+                    box-shadow: none;
+                }
+
+                .signatures td {
+                    border: none !important;
+                    text-align: center;
+                    vertical-align: bottom;
+                    padding: 20px;
+                }
+
+                .signature-box {
+                    display: inline-block;
+                    min-width: 200px;
+                    padding-top: 60px;
+                    border-top: 2px solid #212529;
+                }
+
+                .signature-label {
+                    font-weight: 600;
+                    color: #495057;
+                    font-size: 10pt;
+                    margin-top: 8px;
+                }
+
+                /* Footer */
+                .footer {
+                    position: fixed;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    height: 60px;
+                    background: #f8f9fa;
+                    border-top: 3px solid #0d6efd;
+                    padding: 15px 20px;
+                    font-size: 8pt;
+                    color: #6c757d;
+                }
+
+                .footer-grid {
+                    display: table;
+                    width: 100%;
+                }
+
+                .footer-left {
+                    display: table-cell;
+                    width: 70%;
+                    vertical-align: middle;
+                }
+
+                .footer-right {
+                    display: table-cell;
+                    width: 30%;
+                    vertical-align: middle;
                     text-align: right;
                 }
 
-                .text-center {
-                    text-align: center;
+                .page-number:before {
+                    content: "Page " counter(page);
                 }
 
-                .badge {
-                    display: inline-block;
-                    padding: 3px 8px;
-                    font-size: 9pt;
-                    border-radius: 3px;
-                    font-weight: bold;
+                /* Utilitaires */
+                .text-right { text-align: right; }
+                .text-center { text-align: center; }
+                .text-left { text-align: left; }
+                .fw-bold { font-weight: bold; }
+                .text-muted { color: #6c757d; }
+                .text-primary { color: #0d6efd; }
+                .text-success { color: #198754; }
+                .text-danger { color: #dc3545; }
+
+                /* Alert boxes */
+                .alert {
+                    padding: 12px 15px;
+                    margin: 15px 0;
+                    border-radius: 6px;
+                    border-left: 4px solid;
                 }
 
-                .badge-success {
-                    background-color: #198754;
-                    color: white;
+                .alert-info {
+                    background-color: #cff4fc;
+                    border-left-color: #0dcaf0;
+                    color: #055160;
                 }
 
-                .badge-warning {
-                    background-color: #ffc107;
-                    color: #000;
+                .alert-warning {
+                    background-color: #fff3cd;
+                    border-left-color: #ffc107;
+                    color: #664d03;
                 }
 
-                .badge-danger {
-                    background-color: #dc3545;
-                    color: white;
+                /* Section notes */
+                .notes-section {
+                    background: #fffbea;
+                    border: 1px solid #ffc107;
+                    border-radius: 6px;
+                    padding: 15px;
+                    margin: 20px 0;
                 }
 
-                .badge-info {
-                    background-color: #0dcaf0;
-                    color: #000;
-                }
-
-                .total-row {
-                    background-color: #e7f1ff !important;
-                    font-weight: bold;
+                .notes-section h4 {
+                    color: #664d03;
                     font-size: 11pt;
+                    margin: 0 0 10px 0;
                 }
             </style>
         </head>
         <body>
-            <div class="header">
-                ' . (!empty($logoData) ? '<img src="' . $logoData . '" alt="Logo">' : '') . '
-                <h1>' . htmlspecialchars($this->parametres['nom_etablissement'] ?? APP_NAME) . '</h1>
-                <div class="info">
-                    ' . htmlspecialchars($this->parametres['adresse'] ?? '') . '<br>
-                    Tél: ' . htmlspecialchars($this->parametres['tel_fixe'] ?? '') . ' |
-                    Email: ' . htmlspecialchars($this->parametres['email'] ?? '') . '
+            <!-- En-tête avec logo et informations -->
+            <div class="header-container">
+                <div class="header-badge">Généré le ' . date('d/m/Y') . '</div>
+                <div class="header-grid">
+                    ' . (!empty($logoData) ? '
+                    <div class="header-logo">
+                        <img src="' . $logoData . '" alt="Logo">
+                    </div>' : '') . '
+                    <div class="header-info">
+                        <h1>' . htmlspecialchars($this->parametres['nom_etablissement'] ?? APP_NAME) . '</h1>
+                        <div class="details">
+                            ' . (!empty($this->parametres['adresse']) ? '<div>📍 ' . htmlspecialchars($this->parametres['adresse']) . '</div>' : '') . '
+                            <div>
+                                ' . (!empty($this->parametres['tel_fixe']) ? '📞 ' . htmlspecialchars($this->parametres['tel_fixe']) : '') . '
+                                ' . (!empty($this->parametres['tel_port']) ? ' / 📱 ' . htmlspecialchars($this->parametres['tel_port']) : '') . '
+                            </div>
+                            ' . (!empty($this->parametres['email']) ? '<div>✉️ ' . htmlspecialchars($this->parametres['email']) . '</div>' : '') . '
+                        </div>
+                    </div>
                 </div>
             </div>
 
+            <!-- Contenu du document -->
             <div class="content">
                 ' . $content . '
             </div>
 
+            <!-- Footer fixe -->
             <div class="footer">
-                <div class="page-number"></div>
-                <div>Généré le ' . date('d/m/Y à H:i') . ' - © ' . date('Y') . ' ' . htmlspecialchars($this->parametres['nom_etablissement'] ?? APP_NAME) . '</div>
+                <div class="footer-grid">
+                    <div class="footer-left">
+                        <strong>' . htmlspecialchars($this->parametres['nom_etablissement'] ?? APP_NAME) . '</strong><br>
+                        Document généré le ' . date('d/m/Y à H:i') . ' - © ' . date('Y') . '
+                    </div>
+                    <div class="footer-right">
+                        <div class="page-number"></div>
+                    </div>
+                </div>
             </div>
         </body>
         </html>
@@ -257,12 +453,13 @@ class PDF {
     }
 
     /**
-     * Générer un bon d'entrée
+     * Générer un bon d'entrée avec design Bootstrap 5
      */
     public function generateBonEntree($entree_id) {
         // Récupérer les données
         $sql = "SELECT e.*, f.nom_complet as fournisseur, f.adresse as fournisseur_adresse,
-                       f.ville, f.tel1, u.nom as user_nom, u.prenom as user_prenom
+                       f.ville, f.tel1, f.email as fournisseur_email,
+                       u.nom as user_nom, u.prenom as user_prenom
                 FROM entrees e
                 INNER JOIN fournisseurs f ON e.fournisseur_id = f.id
                 INNER JOIN users u ON e.user_id = u.id
@@ -272,6 +469,10 @@ class PDF {
         $this->db->bind(':id', $entree_id);
         $entree = $this->db->fetch();
 
+        if (!$entree) {
+            throw new Exception("Entrée introuvable");
+        }
+
         // Récupérer les lignes
         $this->db->prepare("SELECT * FROM ligne_entrees WHERE entree_id = :id ORDER BY id");
         $this->db->bind(':id', $entree_id);
@@ -279,81 +480,96 @@ class PDF {
 
         // Construire le HTML
         $html = '
-            <h2>BON D\'ENTRÉE N° ' . $entree['id'] . '</h2>
+            <h2>📦 BON D\'ENTRÉE N° ' . str_pad($entree['id'], 5, '0', STR_PAD_LEFT) . '</h2>
 
             <div class="info-box">
-                <div><span class="label">Date:</span> <span class="value">' . date('d/m/Y', strtotime($entree['date'])) . '</span></div>
-                <div><span class="label">Fournisseur:</span> <span class="value">' . htmlspecialchars($entree['fournisseur']) . '</span></div>
-                <div><span class="label">Adresse:</span> <span class="value">' . htmlspecialchars($entree['fournisseur_adresse'] . ', ' . $entree['ville']) . '</span></div>
-                <div><span class="label">Téléphone:</span> <span class="value">' . htmlspecialchars($entree['tel1']) . '</span></div>
-                <div><span class="label">Créé par:</span> <span class="value">' . htmlspecialchars($entree['user_prenom'] . ' ' . $entree['user_nom']) . '</span></div>
+                <div class="row">
+                    <div class="col">
+                        <div><span class="label">📅 Date d\'entrée:</span> <span class="value">' . date('d/m/Y', strtotime($entree['date'])) . '</span></div>
+                        <div><span class="label">👤 Créé par:</span> <span class="value">' . htmlspecialchars($entree['user_prenom'] . ' ' . $entree['user_nom']) . '</span></div>
+                    </div>
+                    <div class="col">
+                        <div><span class="label">🏢 Fournisseur:</span> <span class="value fw-bold">' . htmlspecialchars($entree['fournisseur']) . '</span></div>
+                        <div><span class="label">📍 Adresse:</span> <span class="value">' . htmlspecialchars($entree['fournisseur_adresse'] . ', ' . $entree['ville']) . '</span></div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <div><span class="label">📞 Téléphone:</span> <span class="value">' . htmlspecialchars($entree['tel1'] ?? '-') . '</span></div>
+                    </div>
+                    <div class="col">
+                        <div><span class="label">✉️ Email:</span> <span class="value">' . htmlspecialchars($entree['fournisseur_email'] ?? '-') . '</span></div>
+                    </div>
+                </div>
             </div>
 
-            <h3>Articles</h3>
+            <h3>📋 Liste des articles</h3>
             <table>
                 <thead>
                     <tr>
-                        <th width="15%">Code article</th>
-                        <th width="55%">Désignation</th>
-                        <th width="15%" class="text-right">Quantité</th>
-                        <th width="15%" class="text-right">Unité</th>
+                        <th width="12%">Code</th>
+                        <th width="48%">Désignation</th>
+                        <th width="20%" class="text-right">Quantité</th>
+                        <th width="20%" class="text-right">Unité</th>
                     </tr>
                 </thead>
                 <tbody>';
 
         $total_qte = 0;
+        $nb_articles = 0;
         foreach ($lignes as $ligne) {
             $total_qte += $ligne['qte_entree'];
+            $nb_articles++;
 
             $html .= '
                     <tr>
-                        <td>' . htmlspecialchars($ligne['code_article']) . '</td>
+                        <td><span class="badge badge-secondary">' . htmlspecialchars($ligne['code_article']) . '</span></td>
                         <td>' . htmlspecialchars($ligne['designation']) . '</td>
-                        <td class="text-right">' . number_format($ligne['qte_entree'], 2, ',', ' ') . '</td>
+                        <td class="text-right fw-bold">' . number_format($ligne['qte_entree'], 2, ',', ' ') . '</td>
                         <td class="text-right">Unité(s)</td>
                     </tr>';
         }
 
         $html .= '
                     <tr class="total-row">
-                        <td colspan="2" class="text-right">TOTAL</td>
-                        <td class="text-right">' . number_format($total_qte, 2, ',', ' ') . '</td>
-                        <td class="text-right">Unité(s)</td>
+                        <td colspan="2" class="text-right"><strong>TOTAL (' . $nb_articles . ' article(s))</strong></td>
+                        <td class="text-right"><strong>' . number_format($total_qte, 2, ',', ' ') . '</strong></td>
+                        <td class="text-right"><strong>Unité(s)</strong></td>
                     </tr>
                 </tbody>
             </table>';
 
         if (!empty($entree['notes'])) {
             $html .= '
-                <h3>Notes</h3>
-                <div class="info-box">
-                    ' . nl2br(htmlspecialchars($entree['notes'])) . '
+                <div class="notes-section">
+                    <h4>📝 Notes et observations</h4>
+                    <div>' . nl2br(htmlspecialchars($entree['notes'])) . '</div>
                 </div>';
         }
 
         $html .= '
-            <div style="margin-top: 50px;">
-                <table style="border: none;">
+            <div class="signatures">
+                <table>
                     <tr>
-                        <td width="50%" style="border: none; text-align: center;">
-                            <div style="border-top: 1px solid #000; display: inline-block; padding-top: 5px; min-width: 200px;">
-                                Signature Fournisseur
-                            </div>
+                        <td width="50%">
+                            <div class="signature-box"></div>
+                            <div class="signature-label">Signature Fournisseur</div>
+                            <div class="text-muted" style="font-size: 8pt;">Date et cachet</div>
                         </td>
-                        <td width="50%" style="border: none; text-align: center;">
-                            <div style="border-top: 1px solid #000; display: inline-block; padding-top: 5px; min-width: 200px;">
-                                Signature Réceptionnaire
-                            </div>
+                        <td width="50%">
+                            <div class="signature-box"></div>
+                            <div class="signature-label">Signature Réceptionnaire</div>
+                            <div class="text-muted" style="font-size: 8pt;">Date et cachet</div>
                         </td>
                     </tr>
                 </table>
             </div>';
 
-        $this->generate($html, 'bon_entree_' . $entree_id . '.pdf');
+        $this->generate($html, 'bon_entree_' . str_pad($entree_id, 5, '0', STR_PAD_LEFT) . '.pdf');
     }
 
     /**
-     * Générer un bon de sortie
+     * Générer un bon de sortie avec design Bootstrap 5
      */
     public function generateBonSortie($sortie_id) {
         // Récupérer les données
@@ -375,6 +591,10 @@ class PDF {
         $this->db->bind(':id', $sortie_id);
         $sortie = $this->db->fetch();
 
+        if (!$sortie) {
+            throw new Exception("Sortie introuvable");
+        }
+
         // Récupérer les lignes
         $this->db->prepare("SELECT * FROM ligne_sorties WHERE sortie_id = :id ORDER BY id");
         $this->db->bind(':id', $sortie_id);
@@ -382,90 +602,113 @@ class PDF {
 
         // Construire le HTML
         $html = '
-            <h2>BON DE SORTIE N° ' . $sortie['id'] . '</h2>
+            <h2>📤 BON DE SORTIE N° ' . str_pad($sortie['id'], 5, '0', STR_PAD_LEFT) . '</h2>
 
             <div class="info-box">
-                <div><span class="label">Date:</span> <span class="value">' . date('d/m/Y', strtotime($sortie['date'])) . '</span></div>
-                <div><span class="label">Service demandeur:</span> <span class="value">' . htmlspecialchars($sortie['service']) . '</span></div>
-                <div><span class="label">Employé demandeur:</span> <span class="value">' . htmlspecialchars($sortie['employe']) . '</span></div>';
+                <h3 style="margin-top: 0; font-size: 11pt; color: #0d6efd; border: none; padding: 0;">👥 Demandeur</h3>
+                <div class="row">
+                    <div class="col">
+                        <div><span class="label">📅 Date de sortie:</span> <span class="value">' . date('d/m/Y', strtotime($sortie['date'])) . '</span></div>
+                        <div><span class="label">🏢 Service:</span> <span class="value fw-bold">' . htmlspecialchars($sortie['service']) . '</span></div>
+                    </div>
+                    <div class="col">
+                        <div><span class="label">👤 Employé:</span> <span class="value fw-bold">' . htmlspecialchars($sortie['employe']) . '</span></div>
+                        <div><span class="label">✍️ Créé par:</span> <span class="value">' . htmlspecialchars($sortie['user_prenom'] . ' ' . $sortie['user_nom']) . '</span></div>
+                    </div>
+                </div>
+            </div>';
 
-        if (!empty($sortie['service_affectation'])) {
-            $html .= '<div><span class="label">Service affectation:</span> <span class="value">' . htmlspecialchars($sortie['service_affectation']) . '</span></div>';
-        }
-        if (!empty($sortie['employe_affectation'])) {
-            $html .= '<div><span class="label">Employé affectation:</span> <span class="value">' . htmlspecialchars($sortie['employe_affectation']) . '</span></div>';
-        }
-        if (!empty($sortie['bureau'])) {
-            $html .= '<div><span class="label">Bureau:</span> <span class="value">' . htmlspecialchars($sortie['bureau']) . '</span></div>';
-        }
-        if (!empty($sortie['armoire'])) {
-            $html .= '<div><span class="label">Armoire:</span> <span class="value">' . htmlspecialchars($sortie['armoire']) . '</span></div>';
+        if (!empty($sortie['service_affectation']) || !empty($sortie['employe_affectation']) || !empty($sortie['bureau']) || !empty($sortie['armoire'])) {
+            $html .= '
+            <div class="info-box">
+                <h3 style="margin-top: 0; font-size: 11pt; color: #198754; border: none; padding: 0;">📍 Affectation</h3>
+                <div class="row">
+                    <div class="col">';
+
+            if (!empty($sortie['service_affectation'])) {
+                $html .= '<div><span class="label">🏢 Service:</span> <span class="value">' . htmlspecialchars($sortie['service_affectation']) . '</span></div>';
+            }
+            if (!empty($sortie['employe_affectation'])) {
+                $html .= '<div><span class="label">👤 Employé:</span> <span class="value">' . htmlspecialchars($sortie['employe_affectation']) . '</span></div>';
+            }
+
+            $html .= '</div><div class="col">';
+
+            if (!empty($sortie['bureau'])) {
+                $html .= '<div><span class="label">🚪 Bureau:</span> <span class="value">' . htmlspecialchars($sortie['bureau']) . '</span></div>';
+            }
+            if (!empty($sortie['armoire'])) {
+                $html .= '<div><span class="label">🗄️ Armoire:</span> <span class="value">' . htmlspecialchars($sortie['armoire']) . '</span></div>';
+            }
+
+            $html .= '</div>
+                </div>
+            </div>';
         }
 
         $html .= '
-                <div><span class="label">Créé par:</span> <span class="value">' . htmlspecialchars($sortie['user_prenom'] . ' ' . $sortie['user_nom']) . '</span></div>
-            </div>
-
-            <h3>Articles</h3>
+            <h3>📋 Liste des articles</h3>
             <table>
                 <thead>
                     <tr>
-                        <th width="15%">Code article</th>
-                        <th width="55%">Désignation</th>
-                        <th width="15%" class="text-right">Quantité</th>
-                        <th width="15%" class="text-right">Unité</th>
+                        <th width="12%">Code</th>
+                        <th width="48%">Désignation</th>
+                        <th width="20%" class="text-right">Quantité</th>
+                        <th width="20%" class="text-right">Unité</th>
                     </tr>
                 </thead>
                 <tbody>';
 
         $total_qte = 0;
+        $nb_articles = 0;
         foreach ($lignes as $ligne) {
             $total_qte += $ligne['qte_sortie'];
+            $nb_articles++;
 
             $html .= '
                     <tr>
-                        <td>' . htmlspecialchars($ligne['code_article']) . '</td>
+                        <td><span class="badge badge-secondary">' . htmlspecialchars($ligne['code_article']) . '</span></td>
                         <td>' . htmlspecialchars($ligne['designation']) . '</td>
-                        <td class="text-right">' . number_format($ligne['qte_sortie'], 2, ',', ' ') . '</td>
+                        <td class="text-right fw-bold">' . number_format($ligne['qte_sortie'], 2, ',', ' ') . '</td>
                         <td class="text-right">Unité(s)</td>
                     </tr>';
         }
 
         $html .= '
                     <tr class="total-row">
-                        <td colspan="2" class="text-right">TOTAL</td>
-                        <td class="text-right">' . number_format($total_qte, 2, ',', ' ') . '</td>
-                        <td class="text-right">Unité(s)</td>
+                        <td colspan="2" class="text-right"><strong>TOTAL (' . $nb_articles . ' article(s))</strong></td>
+                        <td class="text-right"><strong>' . number_format($total_qte, 2, ',', ' ') . '</strong></td>
+                        <td class="text-right"><strong>Unité(s)</strong></td>
                     </tr>
                 </tbody>
             </table>';
 
         if (!empty($sortie['notes'])) {
             $html .= '
-                <h3>Notes</h3>
-                <div class="info-box">
-                    ' . nl2br(htmlspecialchars($sortie['notes'])) . '
+                <div class="notes-section">
+                    <h4>📝 Notes et observations</h4>
+                    <div>' . nl2br(htmlspecialchars($sortie['notes'])) . '</div>
                 </div>';
         }
 
         $html .= '
-            <div style="margin-top: 50px;">
-                <table style="border: none;">
+            <div class="signatures">
+                <table>
                     <tr>
-                        <td width="50%" style="border: none; text-align: center;">
-                            <div style="border-top: 1px solid #000; display: inline-block; padding-top: 5px; min-width: 200px;">
-                                Signature Magasinier
-                            </div>
+                        <td width="50%">
+                            <div class="signature-box"></div>
+                            <div class="signature-label">Signature Magasinier</div>
+                            <div class="text-muted" style="font-size: 8pt;">Date et cachet</div>
                         </td>
-                        <td width="50%" style="border: none; text-align: center;">
-                            <div style="border-top: 1px solid #000; display: inline-block; padding-top: 5px; min-width: 200px;">
-                                Signature Bénéficiaire
-                            </div>
+                        <td width="50%">
+                            <div class="signature-box"></div>
+                            <div class="signature-label">Signature Bénéficiaire</div>
+                            <div class="text-muted" style="font-size: 8pt;">Date et cachet</div>
                         </td>
                     </tr>
                 </table>
             </div>';
 
-        $this->generate($html, 'bon_sortie_' . $sortie_id . '.pdf');
+        $this->generate($html, 'bon_sortie_' . str_pad($sortie_id, 5, '0', STR_PAD_LEFT) . '.pdf');
     }
 }
