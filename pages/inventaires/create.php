@@ -1,93 +1,89 @@
 <?php
-$page_title = 'Nouvel inventaire';
+/**
+ * Création d'un nouvel inventaire avec génération automatique de référence
+ */
+
+$page_title = 'Créer un inventaire';
 require_once __DIR__ . '/../../includes/header.php';
 
 $auth->requirePermission('inventaires', 'create');
 $db = Database::getInstance();
 
+// Traitement du formulaire
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $date_debut = $_POST['date_debut'] ?? '';
+    $date = $_POST['date'] ?? date('Y-m-d');
     $equipe_id = !empty($_POST['equipe_id']) ? intval($_POST['equipe_id']) : null;
-    $notes = trim($_POST['notes'] ?? '');
-    $articles = $_POST['article_id'] ?? [];
-
-    $errors = [];
-    if (empty($date_debut)) $errors[] = 'La date de début est obligatoire.';
-    if (empty($articles)) $errors[] = 'Veuillez ajouter au moins un article à inventorier.';
-
-    if (empty($errors)) {
-        try {
-            $db->beginTransaction();
-
-            // Générer référence automatique format: INV-ANNEE-NUMERO
-            $annee = date('Y');
-            $sql_count = "SELECT COUNT(*) as count FROM inventaires WHERE reference LIKE :pattern";
-            $db->prepare($sql_count);
-            $db->bind(':pattern', "INV-$annee-%");
-            $count = $db->fetch()['count'];
-            $numero = str_pad($count + 1, 3, '0', STR_PAD_LEFT);
-            $reference = "INV-$annee-$numero";
-
-            // Insert inventaire
-            $sql = "INSERT INTO inventaires (reference, date_debut, equipe_id, etat, notes, user_id)
-                    VALUES (:ref, :date_debut, :equipe_id, 'en_cours', :notes, :user_id)";
-
-            $db->prepare($sql);
-            $db->bind(':ref', $reference);
-            $db->bind(':date_debut', $date_debut);
-            $db->bind(':equipe_id', $equipe_id);
-            $db->bind(':notes', $notes);
-            $db->bind(':user_id', $auth->getUserId());
-            $db->execute();
-
-            $inventaire_id = $db->lastInsertId();
-
-            // Insert lignes inventaire avec stock théorique
-            foreach ($articles as $article_id) {
-                if (empty($article_id)) continue;
-
-                // Récupérer stock actuel
-                $db->prepare("SELECT code_article, designation, qte_disponible FROM articles WHERE id = :id");
-                $db->bind(':id', $article_id);
-                $article = $db->fetch();
-
-                if (!$article) continue;
-
-                // Insert ligne avec qte_theorique = stock actuel, qte_physique = 0
-                $sql = "INSERT INTO ligne_inventaires (inventaire_id, article_id, code_article, designation, qte_theorique, qte_physique, ecart)
-                        VALUES (:inv_id, :article_id, :code, :designation, :qte_theorique, 0, 0)";
-
-                $db->prepare($sql);
-                $db->bind(':inv_id', $inventaire_id);
-                $db->bind(':article_id', $article_id);
-                $db->bind(':code', $article['code_article']);
-                $db->bind(':designation', $article['designation']);
-                $db->bind(':qte_theorique', $article['qte_disponible']);
-                $db->execute();
-            }
-
-            $auth->logTrace($auth->getUserId(), 'inventaires', 'create', 'inventaires', $inventaire_id, "Création: $reference");
-            $db->commit();
-
-            $_SESSION['success'] = 'Inventaire créé avec succès en état "En cours". Vous pouvez maintenant saisir les quantités physiques.';
-            header('Location: ' . BASE_URL . '/pages/inventaires/view.php?id=' . $inventaire_id);
-            exit;
-
-        } catch (Exception $e) {
-            $db->rollback();
-            $errors[] = 'Erreur: ' . $e->getMessage();
+   
+    try {
+        $conn = $db->getConnection();
+        $conn->beginTransaction();
+        
+        // Générer la référence automatique INV-YEAR-NUMBER
+        $year = date('Y', strtotime($date));
+        $stmt = $conn->prepare("SELECT COUNT(*) as count FROM inventaires WHERE YEAR(date) = :year");
+        $stmt->execute([':year' => $year]);
+        $count = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+        $numero = str_pad($count + 1, 3, '0', STR_PAD_LEFT);
+        $reference = "INV-{$year}-{$numero}";
+        
+        // Insérer l'inventaire
+        $sql = "INSERT INTO inventaires (reference, date, equipe_id, etat, user_id, created_at)
+                VALUES (:reference, :date, :equipe_id, 'en_cours', :user_id, NOW())";
+        
+        $stmt = $conn->prepare($sql);
+        $stmt->execute([
+            ':reference' => $reference,
+            ':date' => $date,
+            ':equipe_id' => $equipe_id,
+            ':user_id' => $auth->getUserId()
+        ]);
+        
+        $inventaire_id = $conn->lastInsertId();
+        
+        // Créer les lignes d'inventaire pour tous les articles actifs
+        $sql_articles = "SELECT id, reference, designation, qte_disponible
+                        FROM articles
+                        WHERE actif = 1
+                        ORDER BY reference";
+        
+        $stmt_articles = $conn->query($sql_articles);
+        $articles = $stmt_articles->fetchAll(PDO::FETCH_ASSOC);
+        
+        $sql_ligne = "INSERT INTO ligne_inventaires 
+                     (inventaire_id, article_id, code_article, designation, qte_theorique, qte_physique, ecart)
+                      VALUES (:inv_id, :art_id, :code, :design, :qte_theo, 0, :qte_theo * -1)";
+        
+        $stmt_ligne = $conn->prepare($sql_ligne);
+        
+        foreach ($articles as $article) {
+            $stmt_ligne->execute([
+                ':inv_id' => $inventaire_id,
+                ':art_id' => $article['id'],
+                ':code' => $article['reference'],
+                ':design' => $article['designation'],
+                ':qte_theo' => $article['qte_disponible']
+            ]);
         }
+        
+        $conn->commit();
+        
+        $_SESSION['success'] = "Inventaire {$reference} créé avec succès ! " . count($articles) . " articles ajoutés.";
+        header('Location: ' . BASE_URL . '/pages/inventaires/view.php?id=' . $inventaire_id);
+        exit;
+        
+    } catch (Exception $e) {
+        $conn->rollBack();
+        $_SESSION['error'] = 'Erreur lors de la création : ' . $e->getMessage();
     }
 }
 
-// Calculer la prochaine référence pour affichage
-$annee = date('Y');
-$sql_count = "SELECT COUNT(*) as count FROM inventaires WHERE reference LIKE :pattern";
-$db->prepare($sql_count);
-$db->bind(':pattern', "INV-$annee-%");
-$count = $db->fetch()['count'];
-$numero = str_pad($count + 1, 3, '0', STR_PAD_LEFT);
-$next_reference = "INV-$annee-$numero";
+// Récupérer les équipes
+$stmt_equipes = $db->getConnection()->query("SELECT id, nom FROM equipes_inventaire ORDER BY nom");
+$equipes = $stmt_equipes->fetchAll(PDO::FETCH_ASSOC);
+
+// Compter les articles actifs
+$stmt_count = $db->getConnection()->query("SELECT COUNT(*) as count FROM articles WHERE actif = 1");
+$nb_articles = $stmt_count->fetch(PDO::FETCH_ASSOC)['count'];
 ?>
 
 <?php require_once __DIR__ . '/../../includes/navbar.php'; ?>
@@ -95,336 +91,74 @@ $next_reference = "INV-$annee-$numero";
 <div class="container-fluid main-container">
     <div class="row mb-4">
         <div class="col-12">
-            <h2><i class="bi bi-clipboard-check"></i> Créer un nouvel inventaire</h2>
+            <h2><i class="bi bi-plus-circle"></i> Créer un inventaire</h2>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item"><a href="<?php echo BASE_URL; ?>/index.php">Accueil</a></li>
                     <li class="breadcrumb-item"><a href="<?php echo BASE_URL; ?>/pages/inventaires/index.php">Inventaires</a></li>
-                    <li class="breadcrumb-item active">Nouveau</li>
+                    <li class="breadcrumb-item active">Créer</li>
                 </ol>
             </nav>
         </div>
     </div>
 
-    <?php if (!empty($errors)): ?>
-        <div class="alert alert-danger alert-dismissible fade show">
-            <strong><i class="bi bi-exclamation-triangle"></i> Erreurs de saisie :</strong>
-            <ul class="mb-0 mt-2">
-                <?php foreach ($errors as $error): ?><li><?php echo $error; ?></li><?php endforeach; ?>
-            </ul>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    <?php endif; ?>
-
-    <form method="POST">
-        <div class="row">
-            <div class="col-md-8">
-                <!-- Informations générales -->
-                <div class="card mb-3">
-                    <div class="card-header bg-primary text-white">
-                        <i class="bi bi-info-circle"></i> Informations de l'inventaire
+    <div class="row">
+        <div class="col-lg-8 offset-lg-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <i class="bi bi-clipboard-plus"></i> Nouvel inventaire
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Information :</strong> Un inventaire sera créé avec <?php echo $nb_articles; ?> article(s) actif(s).
+                        La référence sera générée automatiquement au format <strong>INV-ANNÉE-NUMÉRO</strong>.
                     </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="form-label">Référence de l'inventaire</label>
-                                <div class="input-group input-group-lg">
-                                    <span class="input-group-text bg-success text-white">
-                                        <i class="bi bi-tag-fill"></i>
-                                    </span>
-                                    <input type="text" class="form-control form-control-lg fw-bold"
-                                           value="<?php echo $next_reference; ?>" readonly>
-                                </div>
-                                <div class="form-text text-success">
-                                    <i class="bi bi-check-circle"></i> Référence générée automatiquement
-                                </div>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="date_debut" class="form-label required">Date de début</label>
-                                <input type="date" class="form-control form-control-lg" id="date_debut" name="date_debut" required
-                                       value="<?php echo $_POST['date_debut'] ?? date('Y-m-d'); ?>">
-                                <div class="form-text">Date de démarrage de l'inventaire</div>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="equipe_id" class="form-label">Équipe d'inventaire</label>
-                                <select class="form-select select2" id="equipe_id" name="equipe_id">
-                                    <option value="">Aucune équipe assignée</option>
-                                </select>
-                                <div class="form-text">Optionnel - Équipe responsable de l'inventaire</div>
-                            </div>
-                        </div>
+
+                    <form method="POST" class="needs-validation" novalidate>
                         <div class="mb-3">
-                            <label for="notes" class="form-label">Notes / Commentaires</label>
-                            <textarea class="form-control" id="notes" name="notes" rows="3" 
-                                      placeholder="Remarques, objectifs de l'inventaire..."><?php echo htmlspecialchars($_POST['notes'] ?? ''); ?></textarea>
+                            <label for="date" class="form-label">Date de l'inventaire <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="date" name="date"
+                                   value="<?php echo date('Y-m-d'); ?>" required>
                         </div>
-                    </div>
-                </div>
 
-                <!-- Articles à inventorier -->
-                <div class="card">
-                    <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-box-seam"></i> Articles à inventorier</span>
-                        <div class="btn-group">
-                            <button type="button" class="btn btn-light btn-sm" onclick="addAllActiveArticles()">
-                                <i class="bi bi-layers-fill"></i> Tous les articles actifs
-                            </button>
-                            <button type="button" class="btn btn-light btn-sm" onclick="addArticleLine()">
-                                <i class="bi bi-plus-circle"></i> Ajouter un article
-                            </button>
+                        <div class="mb-3">
+                            <label for="equipe_id" class="form-label">Équipe d'inventaire</label>
+                            <select class="form-select" id="equipe_id" name="equipe_id">
+                                <option value="">Aucune équipe</option>
+                                <?php foreach ($equipes as $equipe): ?>
+                                    <option value="<?php echo $equipe['id']; ?>">
+                                        <?php echo htmlspecialchars($equipe['nom']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="form-text">Optionnel - Sélectionnez l'équipe qui effectuera l'inventaire</div>
                         </div>
-                    </div>
-                    <div class="card-body">
-                        <div class="alert alert-info">
-                            <i class="bi bi-lightbulb"></i> <strong>Info :</strong> Le stock théorique sera automatiquement rempli avec le stock disponible actuel au moment de la création.
-                            Utilisez le bouton "Tous les articles actifs" pour ajouter automatiquement tous les articles en un clic.
-                        </div>
-                        <div class="table-responsive">
-                            <table class="table table-bordered">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th width="5%">#</th>
-                                        <th width="80%">Article</th>
-                                        <th width="15%" class="text-center">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="articlesBody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
-            <div class="col-md-4">
-                <!-- Actions -->
-                <div class="card mb-3 sticky-top" style="top: 20px;">
-                    <div class="card-header bg-dark text-white">
-                        <i class="bi bi-gear"></i> Actions
-                    </div>
-                    <div class="card-body">
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary btn-lg">
-                                <i class="bi bi-save"></i> Créer l'inventaire
-                            </button>
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <strong>Important :</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>L'inventaire sera créé en état "En cours"</li>
+                                <li>Tous les articles actifs seront ajoutés automatiquement</li>
+                                <li>Les quantités physiques seront à 0 par défaut</li>
+                                <li>Vous pourrez les saisir sur la page de détail</li>
+                            </ul>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
                             <a href="<?php echo BASE_URL; ?>/pages/inventaires/index.php" class="btn btn-secondary">
                                 <i class="bi bi-x-circle"></i> Annuler
                             </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i> Créer l'inventaire
+                            </button>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Workflow -->
-                <div class="card">
-                    <div class="card-header">
-                        <i class="bi bi-diagram-3"></i> Workflow de l'inventaire
-                    </div>
-                    <div class="card-body">
-                        <ol class="list-group list-group-numbered">
-                            <li class="list-group-item d-flex justify-content-between align-items-start">
-                                <div class="ms-2 me-auto">
-                                    <div class="fw-bold">Créer l'inventaire</div>
-                                    État: <span class="badge bg-warning text-dark">En cours</span>
-                                </div>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between align-items-start">
-                                <div class="ms-2 me-auto">
-                                    <div class="fw-bold">Saisir les quantités physiques</div>
-                                    Compter les articles réels
-                                </div>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between align-items-start">
-                                <div class="ms-2 me-auto">
-                                    <div class="fw-bold">Générer les écarts</div>
-                                    Calcul automatique des différences
-                                </div>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between align-items-start">
-                                <div class="ms-2 me-auto">
-                                    <div class="fw-bold">Valider</div>
-                                    État: <span class="badge bg-info">Validé</span>
-                                </div>
-                            </li>
-                            <li class="list-group-item d-flex justify-content-between align-items-start">
-                                <div class="ms-2 me-auto">
-                                    <div class="fw-bold">Clôturer (Admin)</div>
-                                    État: <span class="badge bg-success">Clôturé</span>
-                                </div>
-                            </li>
-                        </ol>
-                    </div>
+                    </form>
                 </div>
             </div>
         </div>
-    </form>
+    </div>
 </div>
-
-<script>
-let articleLineCounter = 0;
-
-$(document).ready(function() {
-    initEquipeSelect('#equipe_id');
-    addArticleLine(); // Ajouter une première ligne
-});
-
-function initEquipeSelect(selector) {
-    $(selector).select2({
-        theme: 'bootstrap-5',
-        placeholder: 'Sélectionner une équipe...',
-        ajax: {
-            url: BASE_URL + '/api/equipes.php',
-            dataType: 'json',
-            delay: 250,
-            data: function(params) {
-                return { search: params.term };
-            },
-            processResults: function(data) {
-                return { results: data };
-            }
-        }
-    });
-}
-
-function addArticleLine() {
-    articleLineCounter++;
-    const row = `
-        <tr id="articleLine${articleLineCounter}">
-            <td class="text-center align-middle">${articleLineCounter}</td>
-            <td>
-                <select class="form-select article-select" name="article_id[]" id="article_${articleLineCounter}" required>
-                    <option value="">Sélectionner un article...</option>
-                </select>
-            </td>
-            <td class="text-center">
-                <button type="button" class="btn btn-danger btn-sm" onclick="removeArticleLine(${articleLineCounter})">
-                    <i class="bi bi-trash"></i>
-                </button>
-            </td>
-        </tr>
-    `;
-    $('#articlesBody').append(row);
-
-    const selectId = '#article_' + articleLineCounter;
-    initArticleSelect(selectId);
-}
-
-function removeArticleLine(lineId) {
-    if ($('#articlesBody tr').length > 1) {
-        $('#articleLine' + lineId).remove();
-        // Renumber les lignes
-        let counter = 1;
-        $('#articlesBody tr').each(function() {
-            $(this).find('td:first').text(counter++);
-        });
-    } else {
-        alert('Vous devez avoir au moins un article à inventorier.');
-    }
-}
-
-function initArticleSelect(selector) {
-    $(selector).select2({
-        theme: 'bootstrap-5',
-        placeholder: 'Sélectionner un article...',
-        ajax: {
-            url: BASE_URL + '/api/articles.php',
-            dataType: 'json',
-            delay: 250,
-            data: function(params) {
-                return { search: params.term };
-            },
-            processResults: function(data) {
-                return { results: data };
-            }
-        }
-    });
-}
-
-function addAllActiveArticles() {
-    // Demander confirmation
-    if (!confirm('Ajouter tous les articles actifs à cet inventaire ?\n\nCela va charger tous les articles de la base de données.')) {
-        return;
-    }
-
-    // Afficher loader
-    const btn = event.target.closest('button');
-    const originalHTML = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Chargement...';
-
-    // Vider la table actuelle
-    $('#articlesBody').empty();
-    articleLineCounter = 0;
-
-    // Charger tous les articles actifs via AJAX
-    $.ajax({
-        url: BASE_URL + '/api/articles.php',
-        method: 'GET',
-        dataType: 'json',
-        data: { all_active: 1 },
-        success: function(articles) {
-            if (!articles || articles.length === 0) {
-                alert('Aucun article actif trouvé dans la base de données.');
-                addArticleLine(); // Ajouter au moins une ligne vide
-                btn.disabled = false;
-                btn.innerHTML = originalHTML;
-                return;
-            }
-
-            // Ajouter chaque article
-            articles.forEach(function(article) {
-                articleLineCounter++;
-                const row = `
-                    <tr id="articleLine${articleLineCounter}">
-                        <td class="text-center align-middle">${articleLineCounter}</td>
-                        <td>
-                            <select class="form-select article-select" name="article_id[]" id="article_${articleLineCounter}" required>
-                                <option value="${article.id}" selected>${article.text}</option>
-                            </select>
-                        </td>
-                        <td class="text-center">
-                            <button type="button" class="btn btn-danger btn-sm" onclick="removeArticleLine(${articleLineCounter})">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `;
-                $('#articlesBody').append(row);
-
-                // Initialiser Select2 pour ce select
-                const selectId = '#article_' + articleLineCounter;
-                $(selectId).select2({
-                    theme: 'bootstrap-5',
-                    placeholder: 'Sélectionner un article...',
-                    ajax: {
-                        url: BASE_URL + '/api/articles.php',
-                        dataType: 'json',
-                        delay: 250,
-                        data: function(params) {
-                            return { search: params.term };
-                        },
-                        processResults: function(data) {
-                            return { results: data };
-                        }
-                    }
-                });
-            });
-
-            // Restaurer le bouton
-            btn.disabled = false;
-            btn.innerHTML = originalHTML;
-
-            // Message de succès
-            alert(`✅ ${articles.length} article(s) actif(s) ajouté(s) avec succès !`);
-        },
-        error: function(xhr, status, error) {
-            alert('❌ Erreur lors du chargement des articles: ' + error);
-            addArticleLine(); // Ajouter au moins une ligne vide
-            btn.disabled = false;
-            btn.innerHTML = originalHTML;
-        }
-    });
-}
-</script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

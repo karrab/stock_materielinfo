@@ -1,48 +1,122 @@
 <?php
-require_once __DIR__ . '/../../includes/header.php';
+/**
+ * Clôture d'un inventaire (passage en état "cloture")
+ */
 
-// Vérifier que l'utilisateur est administrateur
-$auth->requireAdmin();
-$db = Database::getInstance();
-$id = $_GET['id'] ?? 0;
+require_once __DIR__ . '/../../config/config.php';
 
-// Vérifier que l'inventaire existe et est validé (pas en_cours ou déjà clôturé)
-$db->prepare("SELECT * FROM inventaires WHERE id = :id AND etat = 'valide'");
-$db->bind(':id', $id);
-$inventaire = $db->fetch();
+$auth = new Auth();
 
-if (!$inventaire) {
-    $_SESSION['error'] = 'Inventaire introuvable, non validé ou déjà clôturé. Seuls les inventaires validés peuvent être clôturés.';
+// Vérifier que l'utilisateur est admin
+if (!$auth->isAdmin()) {
+    $_SESSION['error'] = 'Seuls les administrateurs peuvent clôturer un inventaire.';
     header('Location: ' . BASE_URL . '/pages/inventaires/index.php');
     exit;
 }
 
-try {
-    // Clôturer l'inventaire (état final, définitif)
-    // Ne pas modifier date_fin (déjà définie lors de la validation)
-    $sql = "UPDATE inventaires SET
-                etat = 'cloture',
-                updated_at = NOW()
-            WHERE id = :id";
+$db = Database::getInstance();
+$id = intval($_GET['id'] ?? 0);
 
-    $db->prepare($sql);
-    $db->bind(':id', $id);
-    $db->execute();
+// Récupérer l'inventaire
+$db->prepare("SELECT * FROM inventaires WHERE id = :id");
+$db->bind(':id', $id);
+$inventaire = $db->fetch();
 
-    $auth->logTrace(
-        $auth->getUserId(),
-        'inventaires',
-        'cloturer',
-        'inventaires',
-        $id,
-        "Clôture définitive inventaire: " . $inventaire['reference']
-    );
-
-    $_SESSION['success'] = 'Inventaire clôturé avec succès ! Il est maintenant figé et ne peut plus être modifié.';
-
-} catch (Exception $e) {
-    $_SESSION['error'] = 'Erreur lors de la clôture: ' . $e->getMessage();
+if (!$inventaire) {
+    $_SESSION['error'] = 'Inventaire introuvable.';
+    header('Location: ' . BASE_URL . '/pages/inventaires/index.php');
+    exit;
 }
 
-header('Location: ' . BASE_URL . '/pages/inventaires/view.php?id=' . $id);
-exit;
+if ($inventaire['etat'] !== 'valide') {
+    $_SESSION['error'] = 'Seuls les inventaires "Validés" peuvent être clôturés.';
+    header('Location: ' . BASE_URL . '/pages/inventaires/view.php?id=' . $id);
+    exit;
+}
+
+// Traitement
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    try {
+        $sql = "UPDATE inventaires SET etat = 'cloture' WHERE id = :id";
+        
+        $conn = $db->getConnection();
+        $stmt = $conn->prepare($sql);
+        $stmt->execute([':id' => $id]);
+        
+        $_SESSION['success'] = "Inventaire {$inventaire['reference']} clôturé avec succès.";
+        header('Location: ' . BASE_URL . '/pages/inventaires/view.php?id=' . $id);
+        exit;
+        
+    } catch (Exception $e) {
+        $_SESSION['error'] = 'Erreur : ' . $e->getMessage();
+    }
+}
+
+$page_title = 'Clôturer inventaire';
+require_once __DIR__ . '/../../includes/header.php';
+?>
+
+<?php require_once __DIR__ . '/../../includes/navbar.php'; ?>
+
+<div class="container-fluid main-container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2><i class="bi bi-lock"></i> Clôturer un inventaire</h2>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="<?php echo BASE_URL; ?>/index.php">Accueil</a></li>
+                    <li class="breadcrumb-item"><a href="<?php echo BASE_URL; ?>/pages/inventaires/index.php">Inventaires</a></li>
+                    <li class="breadcrumb-item active">Clôturer</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-6 offset-lg-3">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <i class="bi bi-lock"></i> Confirmation de clôture
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>ATTENTION !</strong> La clôture est irréversible.
+                    </div>
+
+                    <p>Inventaire à clôturer :</p>
+
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h5><i class="bi bi-clipboard"></i> <?php echo htmlspecialchars($inventaire['reference']); ?></h5>
+                            <p class="mb-0"><strong>Date :</strong> <?php echo date('d/m/Y', strtotime($inventaire['date'])); ?></p>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning mt-3">
+                        <strong>Après clôture :</strong>
+                        <ul class="mb-0">
+                            <li>L'inventaire sera définitivement figé</li>
+                            <li>Aucune modification ne sera possible</li>
+                            <li>Les données seront archivées</li>
+                            <li><strong>Cette action est IRRÉVERSIBLE</strong></li>
+                        </ul>
+                    </div>
+
+                    <form method="POST">
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="<?php echo BASE_URL; ?>/pages/inventaires/view.php?id=<?php echo $id; ?>" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i> Annuler
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-lock"></i> Clôturer définitivement
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<?php require_once __DIR__ . '/../../includes/footer.php'; ?>
