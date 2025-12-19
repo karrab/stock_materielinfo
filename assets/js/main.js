@@ -2,8 +2,11 @@
  * Gestion Stock Matériel - JavaScript Principal
  */
 
-// Configuration globale
-const BASE_URL = window.location.origin + '/stock_materielinfo';
+// Configuration globale (BASE_URL est défini dans footer.php)
+// Si pas défini, fallback sur détection automatique
+if (typeof BASE_URL === 'undefined') {
+    const BASE_URL = window.location.origin + '/stock_materielinfo';
+}
 
 // Formatage des nombres
 function formatNumber(num, decimals = 2) {

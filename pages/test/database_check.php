@@ -174,6 +174,9 @@ require_once __DIR__ . '/../../includes/navbar.php';
                         <a href="<?php echo BASE_URL; ?>/pages/test/test_qte_update.php" class="btn btn-outline-warning btn-sm">
                             <i class="bi bi-clipboard-check"></i> Test mise à jour qte_physiques
                         </a>
+                        <a href="<?php echo BASE_URL; ?>/pages/test/direct_qte_test.php" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-terminal"></i> Test Direct avec Console Debug
+                        </a>
                     </div>
                 </div>
             </div>
