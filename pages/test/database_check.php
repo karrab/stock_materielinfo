@@ -167,9 +167,12 @@ require_once __DIR__ . '/../../includes/navbar.php';
                 </div>
                 <div class="card-body">
                     <p class="small">Consultez les logs pour déboguer:</p>
-                    <div class="d-grid">
+                    <div class="d-grid gap-2">
                         <a href="<?php echo BASE_URL; ?>/pages/test/view_logs.php" class="btn btn-outline-danger btn-sm">
                             <i class="bi bi-bug"></i> Voir Logs qte_physiques
+                        </a>
+                        <a href="<?php echo BASE_URL; ?>/pages/test/test_qte_update.php" class="btn btn-outline-warning btn-sm">
+                            <i class="bi bi-clipboard-check"></i> Test mise à jour qte_physiques
                         </a>
                     </div>
                 </div>
