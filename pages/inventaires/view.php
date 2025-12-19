@@ -456,6 +456,8 @@ $etat_config = match($inventaire['etat']) {
 .table-warning-light { background-color: #fff3cd; }
 </style>
 
+<?php require_once __DIR__ . '/../../includes/footer.php'; ?>
+
 <?php if ($inventaire['etat'] == 'en_cours'): ?>
 <script>
 $(document).ready(function() {
@@ -552,5 +554,3 @@ $(document).ready(function() {
 });
 </script>
 <?php endif; ?>
-
-<?php require_once __DIR__ . '/../../includes/footer.php'; ?>
