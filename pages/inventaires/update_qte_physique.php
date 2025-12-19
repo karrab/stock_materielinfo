@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // Vérifier l'authentification (session déjà démarrée par config.php)
-$auth = Auth::getInstance();
+$auth = new Auth();
 if (!$auth->isLoggedIn() || !$auth->hasPermission('inventaires', 'update')) {
     ob_end_clean();
     http_response_code(403);

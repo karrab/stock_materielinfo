@@ -6,7 +6,7 @@ require_once __DIR__ . '/../classes/Auth.php';
 header('Content-Type: application/json');
 
 // Vérifier l'authentification
-$auth = Auth::getInstance();
+$auth = new Auth();
 if (!$auth->isLoggedIn()) {
     http_response_code(401);
     echo json_encode(['error' => 'Non autorisé']);

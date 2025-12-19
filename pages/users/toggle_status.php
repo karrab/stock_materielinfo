@@ -3,7 +3,7 @@ require_once __DIR__ . '/../../config/config.php';
 require_once __DIR__ . '/../../classes/Database.php';
 require_once __DIR__ . '/../../classes/Auth.php';
 
-$auth = Auth::getInstance();
+$auth = new Auth();
 $auth->requirePermission('users', 'update');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
