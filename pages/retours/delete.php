@@ -18,35 +18,55 @@ if (!$retour) {
     exit;
 }
 
-// Vérifier si le retour est utilisé
-$db->prepare("SELECT COUNT(*) as count FROM employes WHERE retour_id = :id");
-$db->bind(':id', $id);
-$nb_employes = $db->fetch()['count'];
-
-$db->prepare("SELECT COUNT(*) as count FROM bureaux WHERE retour_id = :id");
-$db->bind(':id', $id);
-$nb_bureaux = $db->fetch()['count'];
-
-$db->prepare("SELECT COUNT(*) as count FROM sorties WHERE retour_id = :id OR retour_affectation_id = :id");
-$db->bind(':id', $id);
-$nb_sorties = $db->fetch()['count'];
-
-if ($nb_employes > 0 || $nb_bureaux > 0 || $nb_sorties > 0) {
-    $_SESSION['error'] = 'Impossible de supprimer ce retour car il est utilisé (' . $nb_employes . ' employé(s), ' . $nb_bureaux . ' bureau(x), ' . $nb_sorties . ' sortie(s)).';
-    header('Location: ' . BASE_URL . '/pages/retours/index.php');
-    exit;
-}
-
 try {
+    $db->beginTransaction();
+
+    // Récupérer les lignes de retour pour restaurer les stocks
+    $db->prepare("SELECT article_id, qte_retour FROM ligne_retours WHERE retour_id = :id");
+    $db->bind(':id', $id);
+    $db->execute();
+    $lignes = $db->fetchAll();
+
+    // Restaurer les stocks (retour augmentait le stock, donc on le diminue)
+    foreach ($lignes as $ligne) {
+        $sql = "UPDATE articles
+                SET qte_retour = qte_retour - :qte,
+                    qte_disponible = qte_disponible - :qte
+                WHERE id = :article_id";
+
+        $db->prepare($sql);
+        $db->bind(':qte', $ligne['qte_retour']);
+        $db->bind(':article_id', $ligne['article_id']);
+        $db->execute();
+    }
+
+    // Supprimer les mouvements de l'historique
+    $historique = new HistoriqueArticle();
+    $historique->supprimerParRetour($id);
+
+    // Supprimer les lignes de retour
+    $db->prepare("DELETE FROM ligne_retours WHERE retour_id = :id");
+    $db->bind(':id', $id);
+    $db->execute();
+
+    // Supprimer le fichier joint si existe
+    if (!empty($retour['fichier']) && file_exists(UPLOAD_RETOURS_PATH . '/' . $retour['fichier'])) {
+        unlink(UPLOAD_RETOURS_PATH . '/' . $retour['fichier']);
+    }
+
+    // Supprimer le retour
     $db->prepare("DELETE FROM retours WHERE id = :id");
     $db->bind(':id', $id);
+    $db->execute();
 
-    if ($db->execute()) {
-        $auth->logTrace($auth->getUserId(), 'retours', 'delete', 'retours', $id, "Suppression: " . $retour['nom']);
+    // Log de la trace
+    $auth->logTrace($auth->getUserId(), 'retours', 'delete', 'retours', $id, "Suppression retour #" . $id);
 
-        $_SESSION['success'] = 'Retour supprimé avec succès.';
-    }
+    $db->commit();
+
+    $_SESSION['success'] = 'Retour supprimé avec succès.';
 } catch (Exception $e) {
+    $db->rollback();
     $_SESSION['error'] = 'Erreur lors de la suppression: ' . $e->getMessage();
 }
 

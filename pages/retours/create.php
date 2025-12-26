@@ -93,6 +93,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $db->bind(':qte', $qte);
                 $db->bind(':article_id', $article_id);
                 $db->execute();
+
+                // Enregistrement dans l'historique
+                $historique = new HistoriqueArticle();
+                $historique->enregistrerRetour(
+                    $article_id,
+                    $qte,
+                    $retour_id,
+                    $auth->getUserId(),
+                    $date,
+                    "Retour depuis service"
+                );
             }
 
             $auth->logTrace($auth->getUserId(), 'retours', 'create', 'retours', $retour_id, "Création retour");

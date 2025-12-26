@@ -18,35 +18,55 @@ if (!$entree) {
     exit;
 }
 
-// Vérifier si le entree est utilisé
-$db->prepare("SELECT COUNT(*) as count FROM employes WHERE entree_id = :id");
-$db->bind(':id', $id);
-$nb_employes = $db->fetch()['count'];
-
-$db->prepare("SELECT COUNT(*) as count FROM bureaux WHERE entree_id = :id");
-$db->bind(':id', $id);
-$nb_bureaux = $db->fetch()['count'];
-
-$db->prepare("SELECT COUNT(*) as count FROM sorties WHERE entree_id = :id OR entree_affectation_id = :id");
-$db->bind(':id', $id);
-$nb_sorties = $db->fetch()['count'];
-
-if ($nb_employes > 0 || $nb_bureaux > 0 || $nb_sorties > 0) {
-    $_SESSION['error'] = 'Impossible de supprimer ce entree car il est utilisé (' . $nb_employes . ' employé(s), ' . $nb_bureaux . ' bureau(x), ' . $nb_sorties . ' sortie(s)).';
-    header('Location: ' . BASE_URL . '/pages/entrees/index.php');
-    exit;
-}
-
 try {
+    $db->beginTransaction();
+
+    // Récupérer les lignes d'entrée pour restaurer les stocks
+    $db->prepare("SELECT article_id, qte_entree FROM ligne_entrees WHERE entree_id = :id");
+    $db->bind(':id', $id);
+    $db->execute();
+    $lignes = $db->fetchAll();
+
+    // Restaurer les stocks
+    foreach ($lignes as $ligne) {
+        $sql = "UPDATE articles
+                SET qte_entree = qte_entree - :qte,
+                    qte_disponible = qte_disponible - :qte
+                WHERE id = :article_id";
+
+        $db->prepare($sql);
+        $db->bind(':qte', $ligne['qte_entree']);
+        $db->bind(':article_id', $ligne['article_id']);
+        $db->execute();
+    }
+
+    // Supprimer les mouvements de l'historique
+    $historique = new HistoriqueArticle();
+    $historique->supprimerParEntree($id);
+
+    // Supprimer les lignes d'entrée
+    $db->prepare("DELETE FROM ligne_entrees WHERE entree_id = :id");
+    $db->bind(':id', $id);
+    $db->execute();
+
+    // Supprimer le fichier joint si existe
+    if (!empty($entree['fichier']) && file_exists(UPLOAD_ENTREES_PATH . '/' . $entree['fichier'])) {
+        unlink(UPLOAD_ENTREES_PATH . '/' . $entree['fichier']);
+    }
+
+    // Supprimer l'entrée
     $db->prepare("DELETE FROM entrees WHERE id = :id");
     $db->bind(':id', $id);
+    $db->execute();
 
-    if ($db->execute()) {
-        $auth->logTrace($auth->getUserId(), 'entrees', 'delete', 'entrees', $id, "Suppression: " . $entree['nom']);
+    // Log de la trace
+    $auth->logTrace($auth->getUserId(), 'entrees', 'delete', 'entrees', $id, "Suppression entrée #" . $id);
 
-        $_SESSION['success'] = 'Entrée supprimé avec succès.';
-    }
+    $db->commit();
+
+    $_SESSION['success'] = 'Entrée supprimée avec succès.';
 } catch (Exception $e) {
+    $db->rollback();
     $_SESSION['error'] = 'Erreur lors de la suppression: ' . $e->getMessage();
 }
 

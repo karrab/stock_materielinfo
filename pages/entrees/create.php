@@ -101,6 +101,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $db->bind(':qte', $qte);
                 $db->bind(':article_id', $article_id);
                 $db->execute();
+
+                // Enregistrement dans l'historique
+                $historique = new HistoriqueArticle();
+                $historique->enregistrerEntree(
+                    $article_id,
+                    $qte,
+                    $entree_id,
+                    $auth->getUserId(),
+                    $date,
+                    "Entrée depuis fournisseur"
+                );
             }
 
             // Log de la trace

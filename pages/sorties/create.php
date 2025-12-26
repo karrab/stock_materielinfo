@@ -110,6 +110,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $db->bind(':qte', $qte);
                 $db->bind(':article_id', $article_id);
                 $db->execute();
+
+                // Enregistrement dans l'historique
+                $historique = new HistoriqueArticle();
+                $historique->enregistrerSortie(
+                    $article_id,
+                    $qte,
+                    $sortie_id,
+                    $auth->getUserId(),
+                    $date,
+                    "Sortie vers service"
+                );
             }
 
             $auth->logTrace($auth->getUserId(), 'sorties', 'create', 'sorties', $sortie_id, "Création sortie");

@@ -18,35 +18,55 @@ if (!$sortie) {
     exit;
 }
 
-// Vérifier si le sortie est utilisé
-$db->prepare("SELECT COUNT(*) as count FROM employes WHERE sortie_id = :id");
-$db->bind(':id', $id);
-$nb_employes = $db->fetch()['count'];
-
-$db->prepare("SELECT COUNT(*) as count FROM bureaux WHERE sortie_id = :id");
-$db->bind(':id', $id);
-$nb_bureaux = $db->fetch()['count'];
-
-$db->prepare("SELECT COUNT(*) as count FROM sorties WHERE sortie_id = :id OR sortie_affectation_id = :id");
-$db->bind(':id', $id);
-$nb_sorties = $db->fetch()['count'];
-
-if ($nb_employes > 0 || $nb_bureaux > 0 || $nb_sorties > 0) {
-    $_SESSION['error'] = 'Impossible de supprimer ce sortie car il est utilisé (' . $nb_employes . ' employé(s), ' . $nb_bureaux . ' bureau(x), ' . $nb_sorties . ' sortie(s)).';
-    header('Location: ' . BASE_URL . '/pages/sorties/index.php');
-    exit;
-}
-
 try {
+    $db->beginTransaction();
+
+    // Récupérer les lignes de sortie pour restaurer les stocks
+    $db->prepare("SELECT article_id, qte_sortie FROM ligne_sorties WHERE sortie_id = :id");
+    $db->bind(':id', $id);
+    $db->execute();
+    $lignes = $db->fetchAll();
+
+    // Restaurer les stocks
+    foreach ($lignes as $ligne) {
+        $sql = "UPDATE articles
+                SET qte_sortie = qte_sortie - :qte,
+                    qte_disponible = qte_disponible + :qte
+                WHERE id = :article_id";
+
+        $db->prepare($sql);
+        $db->bind(':qte', $ligne['qte_sortie']);
+        $db->bind(':article_id', $ligne['article_id']);
+        $db->execute();
+    }
+
+    // Supprimer les mouvements de l'historique
+    $historique = new HistoriqueArticle();
+    $historique->supprimerParSortie($id);
+
+    // Supprimer les lignes de sortie
+    $db->prepare("DELETE FROM ligne_sorties WHERE sortie_id = :id");
+    $db->bind(':id', $id);
+    $db->execute();
+
+    // Supprimer le fichier joint si existe
+    if (!empty($sortie['fichier']) && file_exists(UPLOAD_SORTIES_PATH . '/' . $sortie['fichier'])) {
+        unlink(UPLOAD_SORTIES_PATH . '/' . $sortie['fichier']);
+    }
+
+    // Supprimer la sortie
     $db->prepare("DELETE FROM sorties WHERE id = :id");
     $db->bind(':id', $id);
+    $db->execute();
 
-    if ($db->execute()) {
-        $auth->logTrace($auth->getUserId(), 'sorties', 'delete', 'sorties', $id, "Suppression: " . $sortie['nom']);
+    // Log de la trace
+    $auth->logTrace($auth->getUserId(), 'sorties', 'delete', 'sorties', $id, "Suppression sortie #" . $id);
 
-        $_SESSION['success'] = 'Sortie supprimé avec succès.';
-    }
+    $db->commit();
+
+    $_SESSION['success'] = 'Sortie supprimée avec succès.';
 } catch (Exception $e) {
+    $db->rollback();
     $_SESSION['error'] = 'Erreur lors de la suppression: ' . $e->getMessage();
 }
 

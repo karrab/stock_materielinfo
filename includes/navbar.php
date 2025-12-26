@@ -48,6 +48,8 @@
                         <?php if ($auth->hasPermission('retours', 'view')): ?>
                         <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>/pages/retours/index.php"><i class="bi bi-box-arrow-in-up"></i> Retours</a></li>
                         <?php endif; ?>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>/pages/mouvements/index.php"><i class="bi bi-clock-history"></i> Historique des mouvements</a></li>
                     </ul>
                 </li>
                 <?php endif; ?>
