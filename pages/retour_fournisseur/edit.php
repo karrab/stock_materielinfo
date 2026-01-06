@@ -14,6 +14,10 @@ if (!$retour) {
     exit;
 }
 
+// Récupérer la liste des fournisseurs
+$db->prepare("SELECT id, nom_complet FROM fournisseurs ORDER BY nom_complet");
+$fournisseurs = $db->fetchAll();
+
 // Traitement du formulaire
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $fournisseur_id = intval($_POST['fournisseur_id'] ?? 0);
@@ -145,8 +149,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="fournisseur_id" class="form-label required">Fournisseur</label>
-                                <select class="form-select select2" id="fournisseur_id" name="fournisseur_id" required>
+                                <select class="form-select" id="fournisseur_id" name="fournisseur_id" required>
                                     <option value="">Sélectionner un fournisseur...</option>
+                                    <?php foreach ($fournisseurs as $fournisseur): ?>
+                                        <option value="<?php echo $fournisseur['id']; ?>" <?php echo $fournisseur['id'] == $fournisseur_id ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($fournisseur['nom_complet']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
                                 </select>
                             </div>
 
@@ -236,9 +245,6 @@ let articleLineCounter = 0;
 const existingArticles = <?php echo json_encode($retour['lignes']); ?>;
 
 $(document).ready(function() {
-    // Charger les fournisseurs
-    loadFournisseurs();
-
     // Charger les lignes existantes
     existingArticles.forEach(function(ligne) {
         addArticleLine(ligne);
@@ -249,23 +255,6 @@ $(document).ready(function() {
         addArticleLine();
     }
 });
-
-function loadFournisseurs() {
-    $.ajax({
-        url: BASE_URL + '/api/fournisseurs.php',
-        data: { search: '' },
-        dataType: 'json',
-        success: function(data) {
-            if (data && data.length > 0) {
-                $('#fournisseur_id').html('<option value="">Sélectionner un fournisseur...</option>');
-                data.forEach(function(fournisseur) {
-                    const selected = fournisseur.id == <?php echo $fournisseur_id; ?> ? 'selected' : '';
-                    $('#fournisseur_id').append(new Option(fournisseur.text, fournisseur.id, false, selected == 'selected'));
-                });
-            }
-        }
-    });
-}
 
 function addArticleLine(existingData = null) {
     articleLineCounter++;

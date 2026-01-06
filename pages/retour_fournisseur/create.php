@@ -245,6 +245,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                     </div>
                 </div>
+
+                <!-- Dernière entrée du fournisseur -->
+                <div class="card mt-3" id="lastEntreeCard" style="display: none;">
+                    <div class="card-header bg-info text-white">
+                        <i class="bi bi-clock-history"></i> Dernière entrée de ce fournisseur
+                    </div>
+                    <div class="card-body" id="lastEntreeContent">
+                        <p class="text-muted text-center">
+                            <i class="bi bi-arrow-up"></i><br>
+                            Sélectionnez un fournisseur pour voir sa dernière entrée
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
     </form>
@@ -256,6 +269,18 @@ let articleLineCounter = 0;
 $(document).ready(function() {
     // Ajouter une première ligne d'article
     addArticleLine();
+
+    // Écouter le changement de fournisseur
+    $('#fournisseur_id').on('change', function() {
+        const fournisseurId = $(this).val();
+
+        if (fournisseurId) {
+            loadLastEntree(fournisseurId);
+        } else {
+            // Cacher la card si aucun fournisseur sélectionné
+            $('#lastEntreeCard').hide();
+        }
+    });
 });
 
 function addArticleLine() {
@@ -301,6 +326,59 @@ function removeArticleLine(lineId) {
     } else {
         alert('Vous devez avoir au moins un article.');
     }
+}
+
+function loadLastEntree(fournisseurId) {
+    $.ajax({
+        url: BASE_URL + '/api/last_entree_articles.php',
+        data: { fournisseur_id: fournisseurId },
+        dataType: 'json',
+        beforeSend: function() {
+            $('#lastEntreeContent').html('<p class="text-center"><i class="bi bi-hourglass-split"></i> Chargement...</p>');
+            $('#lastEntreeCard').show();
+        },
+        success: function(response) {
+            if (response.success && response.articles && response.articles.length > 0) {
+                let html = '<p class="mb-2"><small class="text-muted">Date: ' + formatDate(response.entree.date) + '</small></p>';
+                html += '<div class="table-responsive">';
+                html += '<table class="table table-sm table-bordered mb-0">';
+                html += '<thead class="table-light">';
+                html += '<tr>';
+                html += '<th>Article</th>';
+                html += '<th class="text-end">Qté entrée</th>';
+                html += '<th class="text-end">Stock actuel</th>';
+                html += '</tr>';
+                html += '</thead>';
+                html += '<tbody>';
+
+                response.articles.forEach(function(article) {
+                    html += '<tr>';
+                    html += '<td><small><strong>' + article.code_article + '</strong><br>' + article.designation + '</small></td>';
+                    html += '<td class="text-end"><span class="badge bg-success">' + formatNumber(article.qte_entree) + '</span></td>';
+                    html += '<td class="text-end"><span class="badge bg-info">' + formatNumber(article.stock_actuel) + '</span></td>';
+                    html += '</tr>';
+                });
+
+                html += '</tbody>';
+                html += '</table>';
+                html += '</div>';
+                html += '<p class="mt-2 mb-0"><small class="text-muted"><i class="bi bi-info-circle"></i> Articles de la dernière entrée</small></p>';
+
+                $('#lastEntreeContent').html(html);
+            } else {
+                $('#lastEntreeContent').html('<p class="text-muted text-center mb-0"><i class="bi bi-inbox"></i><br>Aucune entrée trouvée pour ce fournisseur</p>');
+            }
+        },
+        error: function(xhr, status, error) {
+            $('#lastEntreeContent').html('<p class="text-danger text-center mb-0"><i class="bi bi-exclamation-triangle"></i><br>Erreur lors du chargement</p>');
+            console.error('Erreur AJAX:', error);
+        }
+    });
+}
+
+function formatDate(dateStr) {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 </script>
 
