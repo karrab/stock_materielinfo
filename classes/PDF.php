@@ -711,4 +711,138 @@ class PDF {
 
         $this->generate($html, 'bon_sortie_' . str_pad($sortie_id, 5, '0', STR_PAD_LEFT) . '.pdf');
     }
+
+    /**
+     * Générer bon de retour fournisseur
+     */
+    public function generateBonRetourFournisseur($retour_id) {
+        // Récupérer les données du retour
+        $sql = "SELECT rf.*, f.nom_complet as fournisseur, f.adresse as fournisseur_adresse,
+                       f.ville, f.tel1, f.email as fournisseur_email,
+                       u.nom as user_nom, u.prenom as user_prenom
+                FROM retour_fournisseur rf
+                INNER JOIN fournisseurs f ON rf.fournisseur_id = f.id
+                INNER JOIN users u ON rf.user_id = u.id
+                WHERE rf.id = :id";
+
+        $this->db->prepare($sql);
+        $this->db->bind(':id', $retour_id);
+        $this->db->execute();
+        $retour = $this->db->fetch();
+
+        if (!$retour) {
+            throw new Exception("Retour fournisseur introuvable");
+        }
+
+        // Récupérer les lignes
+        $sql = "SELECT lrf.*, a.qte_disponible as stock_actuel
+                FROM ligne_retour_fournisseur lrf
+                INNER JOIN articles a ON lrf.article_id = a.id
+                WHERE lrf.retour_fournisseur_id = :id
+                ORDER BY lrf.id";
+
+        $this->db->prepare($sql);
+        $this->db->bind(':id', $retour_id);
+        $this->db->execute();
+        $lignes = $this->db->fetchAll();
+
+        // Calculer le total
+        $total_qte = 0;
+        foreach ($lignes as $ligne) {
+            $total_qte += $ligne['qte'];
+        }
+
+        // Construire le HTML
+        $html = '
+        <h2>📤 BON DE RETOUR FOURNISSEUR N° ' . str_pad($retour['id'], 5, '0', STR_PAD_LEFT) . '</h2>
+
+        <div class="info-box">
+            <h3 style="margin-top: 0; font-size: 11pt; color: #dc3545; border: none; padding: 0;">🏢 Fournisseur</h3>
+            <table width="100%">
+                <tr>
+                    <td width="50%">
+                        <div><span class="label">📦 Fournisseur:</span> <span class="value">' . htmlspecialchars($retour['fournisseur']) . '</span></div>
+                        ' . (!empty($retour['fournisseur_adresse']) ? '<div><span class="label">📍 Adresse:</span> <span class="value">' . htmlspecialchars($retour['fournisseur_adresse']) . '</span></div>' : '') . '
+                        ' . (!empty($retour['ville']) ? '<div><span class="label">🏙️ Ville:</span> <span class="value">' . htmlspecialchars($retour['ville']) . '</span></div>' : '') . '
+                    </td>
+                    <td width="50%">
+                        <div><span class="label">📅 Date retour:</span> <span class="value">' . date('d/m/Y', strtotime($retour['date'])) . '</span></div>
+                        ' . (!empty($retour['tel1']) ? '<div><span class="label">📞 Téléphone:</span> <span class="value">' . htmlspecialchars($retour['tel1']) . '</span></div>' : '') . '
+                        ' . (!empty($retour['fournisseur_email']) ? '<div><span class="label">✉️ Email:</span> <span class="value">' . htmlspecialchars($retour['fournisseur_email']) . '</span></div>' : '') . '
+                        <div><span class="label">👤 Créé par:</span> <span class="value">' . htmlspecialchars($retour['user_nom'] . ' ' . $retour['user_prenom']) . '</span></div>
+                    </td>
+                </tr>
+            </table>
+        </div>';
+
+        // Notes si présentes
+        if (!empty($retour['notes'])) {
+            $html .= '
+        <div class="alert alert-warning">
+            <strong>📝 Motif du retour:</strong><br>
+            ' . nl2br(htmlspecialchars($retour['notes'])) . '
+        </div>';
+        }
+
+        // Tableau des articles
+        $html .= '
+        <h3 style="color: #dc3545; margin-top: 15px; margin-bottom: 10px; font-size: 11pt; border-bottom: 2px solid #dc3545; padding-bottom: 5px;">📦 Articles retournés</h3>
+
+        <table class="table-articles">
+            <thead>
+                <tr>
+                    <th width="5%" class="text-center">#</th>
+                    <th width="15%">Code</th>
+                    <th width="45%">Désignation</th>
+                    <th width="20%" class="text-right">Quantité</th>
+                    <th width="15%" class="text-right">Stock actuel</th>
+                </tr>
+            </thead>
+            <tbody>';
+
+        foreach ($lignes as $index => $ligne) {
+            $html .= '
+                <tr>
+                    <td class="text-center">' . ($index + 1) . '</td>
+                    <td><span class="badge">' . htmlspecialchars($ligne['code_article']) . '</span></td>
+                    <td>' . htmlspecialchars($ligne['designation']) . '</td>
+                    <td class="text-right"><strong>' . number_format($ligne['qte'], 2, ',', ' ') . '</strong></td>
+                    <td class="text-right">' . number_format($ligne['stock_actuel'], 2, ',', ' ') . '</td>
+                </tr>';
+        }
+
+        $html .= '
+            </tbody>
+            <tfoot>
+                <tr class="total-row">
+                    <td colspan="3" class="text-right"><strong>TOTAL</strong></td>
+                    <td class="text-right"><strong>' . number_format($total_qte, 2, ',', ' ') . '</strong></td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <div class="alert alert-danger" style="margin-top: 20px;">
+            <strong>⚠️ IMPORTANT:</strong> Ce retour diminue le stock disponible. Les articles retournés sont défectueux ou non conformes.
+        </div>
+
+        <div class="signatures">
+            <table>
+                <tr>
+                    <td width="50%">
+                        <div class="signature-box"></div>
+                        <div class="signature-label">Signature Magasinier</div>
+                        <div class="text-muted" style="font-size: 8pt;">Date et cachet</div>
+                    </td>
+                    <td width="50%">
+                        <div class="signature-box"></div>
+                        <div class="signature-label">Signature Fournisseur</div>
+                        <div class="text-muted" style="font-size: 8pt;">Date et cachet</div>
+                    </td>
+                </tr>
+            </table>
+        </div>';
+
+        $this->generate($html, 'bon_retour_fournisseur_' . str_pad($retour_id, 5, '0', STR_PAD_LEFT) . '.pdf');
+    }
 }
