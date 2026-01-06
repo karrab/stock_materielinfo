@@ -4,6 +4,10 @@ require_once __DIR__ . '/../../includes/header.php';
 
 $db = Database::getInstance();
 
+// Récupérer la liste des fournisseurs
+$db->prepare("SELECT id, nom_complet FROM fournisseurs ORDER BY nom_complet");
+$fournisseurs = $db->fetchAll();
+
 // Traitement du formulaire
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $fournisseur_id = intval($_POST['fournisseur_id'] ?? 0);
@@ -152,8 +156,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label for="fournisseur_id" class="form-label required">Fournisseur</label>
-                                <select class="form-select select2" id="fournisseur_id" name="fournisseur_id" required>
+                                <select class="form-select" id="fournisseur_id" name="fournisseur_id" required>
                                     <option value="">Sélectionner un fournisseur...</option>
+                                    <?php foreach ($fournisseurs as $fournisseur): ?>
+                                        <option value="<?php echo $fournisseur['id']; ?>">
+                                            <?php echo htmlspecialchars($fournisseur['nom_complet']); ?>
+                                        </option>
+                                    <?php endforeach; ?>
                                 </select>
                                 <small class="form-text text-muted">Fournisseur auquel les articles sont retournés</small>
                             </div>
@@ -245,35 +254,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 let articleLineCounter = 0;
 
 $(document).ready(function() {
-    // Charger les fournisseurs initialement
-    loadFournisseurs();
-
     // Ajouter une première ligne d'article
     addArticleLine();
 });
-
-// Fonction pour charger tous les fournisseurs
-function loadFournisseurs() {
-    $.ajax({
-        url: BASE_URL + '/api/fournisseurs.php',
-        data: { search: '' },
-        dataType: 'json',
-        success: function(data) {
-            if (data && data.length > 0) {
-                $('#fournisseur_id').html('<option value="">Sélectionner un fournisseur...</option>');
-                data.forEach(function(fournisseur) {
-                    $('#fournisseur_id').append(new Option(fournisseur.text, fournisseur.id));
-                });
-            } else {
-                $('#fournisseur_id').html('<option value="">Aucun fournisseur disponible</option>');
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('Error loading fournisseurs:', error);
-            $('#fournisseur_id').html('<option value="">Erreur de chargement</option>');
-        }
-    });
-}
 
 function addArticleLine() {
     articleLineCounter++;
