@@ -88,6 +88,7 @@ $module_icons = [
     'sorties' => 'bi-box-arrow-up',
     'retours' => 'bi-box-arrow-in-up',
     'retour_fournisseur' => 'bi-box-arrow-left',
+    'mouvements' => 'bi-clock-history',
     'bureaux' => 'bi-door-open',
     'inventaires' => 'bi-clipboard-check',
     'users' => 'bi-person-circle',

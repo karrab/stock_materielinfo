@@ -2,6 +2,7 @@
 $page_title = 'Historique des mouvements';
 require_once __DIR__ . '/../../includes/header.php';
 
+$auth->requirePermission('mouvements', 'view');
 $db = Database::getInstance();
 $historique = new HistoriqueArticle();
 
@@ -13,10 +14,6 @@ $date_debut = $_GET['date_debut'] ?? '';
 $date_fin = $_GET['date_fin'] ?? '';
 $article_id = $_GET['article_id'] ?? '';
 
-// Pagination
-$page = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
-$perPage = isset($_GET['perPage']) && in_array($_GET['perPage'], PER_PAGE_OPTIONS) ? (int)$_GET['perPage'] : DEFAULT_PER_PAGE;
-
 // Construire les filtres
 $filters = [];
 if (!empty($code_article)) $filters['code_article'] = $code_article;
@@ -26,10 +23,8 @@ if (!empty($date_debut)) $filters['date_debut'] = $date_debut;
 if (!empty($date_fin)) $filters['date_fin'] = $date_fin;
 if (!empty($article_id)) $filters['article_id'] = $article_id;
 
-// Récupérer les données
-$mouvements = $historique->getAll($page, $perPage, $filters);
-$total = $historique->count($filters);
-$totalPages = ceil($total / $perPage);
+// Récupérer TOUS les mouvements (sans pagination pour DataTables)
+$mouvements = $historique->getAllWithoutPagination($filters);
 
 // Récupérer les statistiques
 $stats = $historique->getStatistiques($date_debut ?: null, $date_fin ?: null);
@@ -67,11 +62,12 @@ $stats = $historique->getStatistiques($date_debut ?: null, $date_fin ?: null);
                 <div class="card-body">
                     <div class="row">
                         <?php foreach ($stats as $stat): ?>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="card mb-3
                                     <?php
                                         echo $stat['operation'] === 'entree' ? 'border-success' :
-                                            ($stat['operation'] === 'sortie' ? 'border-danger' : 'border-info');
+                                            ($stat['operation'] === 'sortie' ? 'border-danger' :
+                                            ($stat['operation'] === 'retour' ? 'border-info' : 'border-warning'));
                                     ?>">
                                     <div class="card-body text-center">
                                         <h5 class="card-title">
@@ -80,8 +76,10 @@ $stats = $historique->getStatistiques($date_debut ?: null, $date_fin ?: null);
                                                     echo '<i class="bi bi-box-arrow-in-down text-success"></i> Entrées';
                                                 } elseif ($stat['operation'] === 'sortie') {
                                                     echo '<i class="bi bi-box-arrow-up text-danger"></i> Sorties';
-                                                } else {
-                                                    echo '<i class="bi bi-arrow-counterclockwise text-info"></i> Retours';
+                                                } elseif ($stat['operation'] === 'retour') {
+                                                    echo '<i class="bi bi-arrow-counterclockwise text-info"></i> Retours Employé';
+                                                } elseif ($stat['operation'] === 'retour_fournisseur') {
+                                                    echo '<i class="bi bi-box-arrow-left text-warning"></i> Retours Fournisseur';
                                                 }
                                             ?>
                                         </h5>
@@ -124,7 +122,8 @@ $stats = $historique->getStatistiques($date_debut ?: null, $date_fin ?: null);
                             <option value="">Toutes</option>
                             <option value="entree" <?php echo $operation === 'entree' ? 'selected' : ''; ?>>Entrée</option>
                             <option value="sortie" <?php echo $operation === 'sortie' ? 'selected' : ''; ?>>Sortie</option>
-                            <option value="retour" <?php echo $operation === 'retour' ? 'selected' : ''; ?>>Retour</option>
+                            <option value="retour" <?php echo $operation === 'retour' ? 'selected' : ''; ?>>Retour Employé</option>
+                            <option value="retour_fournisseur" <?php echo $operation === 'retour_fournisseur' ? 'selected' : ''; ?>>Retour Fournisseur</option>
                         </select>
                     </div>
 
@@ -157,25 +156,13 @@ $stats = $historique->getStatistiques($date_debut ?: null, $date_fin ?: null);
 
     <!-- Liste des mouvements -->
     <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <span>
-                <i class="bi bi-list"></i> Liste des mouvements
-                <span class="badge bg-secondary"><?php echo number_format($total, 0, ',', ' '); ?> résultat(s)</span>
-            </span>
-            <div>
-                <label for="perPage" class="form-label me-2 mb-0">Par page:</label>
-                <select id="perPage" name="perPage" class="form-select form-select-sm d-inline-block" style="width: auto;" onchange="changePerPage(this.value)">
-                    <?php foreach (PER_PAGE_OPTIONS as $option): ?>
-                        <option value="<?php echo $option; ?>" <?php echo $perPage == $option ? 'selected' : ''; ?>>
-                            <?php echo $option; ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
+        <div class="card-header">
+            <i class="bi bi-list"></i> Liste des mouvements
+            <span class="badge bg-secondary"><?php echo number_format(count($mouvements), 0, ',', ' '); ?> résultat(s)</span>
         </div>
-        <div class="card-body p-0">
+        <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-hover table-striped mb-0">
+                <table class="table table-hover table-striped table-bordered" id="mouvementsTable">
                     <thead class="table-light">
                         <tr>
                             <th>Date</th>
@@ -188,19 +175,20 @@ $stats = $historique->getStatistiques($date_debut ?: null, $date_fin ?: null);
                             <th class="text-end">Stock Min</th>
                             <th class="text-end">Stock Max</th>
                             <th>Utilisateur</th>
+                            <th>Commentaire</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($mouvements)): ?>
                             <tr>
-                                <td colspan="10" class="text-center py-4">
+                                <td colspan="11" class="text-center py-4">
                                     <i class="bi bi-inbox"></i> Aucun mouvement trouvé
                                 </td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($mouvements as $mouvement): ?>
                                 <tr>
-                                    <td>
+                                    <td data-order="<?php echo strtotime($mouvement['date_operation']); ?>">
                                         <small><?php echo date('d/m/Y H:i', strtotime($mouvement['date_operation'])); ?></small>
                                     </td>
                                     <td>
@@ -212,13 +200,26 @@ $stats = $historique->getStatistiques($date_debut ?: null, $date_fin ?: null);
                                         $badges = [
                                             'entree' => '<span class="badge bg-success"><i class="bi bi-box-arrow-in-down"></i> Entrée</span>',
                                             'sortie' => '<span class="badge bg-danger"><i class="bi bi-box-arrow-up"></i> Sortie</span>',
-                                            'retour' => '<span class="badge bg-info"><i class="bi bi-arrow-counterclockwise"></i> Retour</span>'
+                                            'retour' => '<span class="badge bg-info"><i class="bi bi-arrow-counterclockwise"></i> Retour Employé</span>',
+                                            'retour_fournisseur' => '<span class="badge bg-warning text-dark"><i class="bi bi-box-arrow-left"></i> Retour Fournisseur</span>'
                                         ];
                                         echo $badges[$mouvement['operation']] ?? $mouvement['operation'];
                                         ?>
                                     </td>
-                                    <td class="text-end">
-                                        <strong><?php echo number_format($mouvement['qte'], 2, ',', ' '); ?></strong>
+                                    <td class="text-end" data-order="<?php echo $mouvement['qte']; ?>">
+                                        <?php
+                                        // Afficher le bon badge selon l'opération
+                                        $qte = number_format($mouvement['qte'], 2, ',', ' ');
+                                        if ($mouvement['operation'] === 'entree') {
+                                            echo '<span class="badge bg-success">+ ' . $qte . '</span>';
+                                        } elseif ($mouvement['operation'] === 'sortie') {
+                                            echo '<span class="badge bg-danger">- ' . $qte . '</span>';
+                                        } elseif ($mouvement['operation'] === 'retour') {
+                                            echo '<span class="badge bg-info">+ ' . $qte . '</span>';
+                                        } elseif ($mouvement['operation'] === 'retour_fournisseur') {
+                                            echo '<span class="badge bg-warning text-dark">- ' . $qte . '</span>';
+                                        }
+                                        ?>
                                     </td>
                                     <td class="text-end"><?php echo number_format($mouvement['stock_avant_operation'], 2, ',', ' '); ?></td>
                                     <td class="text-end">
@@ -241,6 +242,13 @@ $stats = $historique->getStatistiques($date_debut ?: null, $date_fin ?: null);
                                     <td>
                                         <small><?php echo htmlspecialchars($mouvement['user_nom'] ?? '') . ' ' . htmlspecialchars($mouvement['user_prenom'] ?? ''); ?></small>
                                     </td>
+                                    <td>
+                                        <?php if (!empty($mouvement['commentaire'])): ?>
+                                            <small><?php echo htmlspecialchars($mouvement['commentaire']); ?></small>
+                                        <?php else: ?>
+                                            <span class="text-muted">-</span>
+                                        <?php endif; ?>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php endif; ?>
@@ -248,73 +256,74 @@ $stats = $historique->getStatistiques($date_debut ?: null, $date_fin ?: null);
                 </table>
             </div>
         </div>
-
-        <!-- Pagination -->
-        <?php if ($totalPages > 1): ?>
-            <div class="card-footer">
-                <nav aria-label="Pagination">
-                    <ul class="pagination pagination-sm mb-0 justify-content-center">
-                        <!-- Première page -->
-                        <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
-                            <a class="page-link" href="?page=1&perPage=<?php echo $perPage; ?><?php echo http_build_query(array_diff_key($_GET, ['page' => '', 'perPage' => ''])) ? '&' . http_build_query(array_diff_key($_GET, ['page' => '', 'perPage' => ''])) : ''; ?>">
-                                <i class="bi bi-chevron-bar-left"></i>
-                            </a>
-                        </li>
-
-                        <!-- Page précédente -->
-                        <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
-                            <a class="page-link" href="?page=<?php echo max(1, $page - 1); ?>&perPage=<?php echo $perPage; ?><?php echo http_build_query(array_diff_key($_GET, ['page' => '', 'perPage' => ''])) ? '&' . http_build_query(array_diff_key($_GET, ['page' => '', 'perPage' => ''])) : ''; ?>">
-                                <i class="bi bi-chevron-left"></i>
-                            </a>
-                        </li>
-
-                        <!-- Numéros de page -->
-                        <?php
-                        $start = max(1, $page - 2);
-                        $end = min($totalPages, $page + 2);
-
-                        for ($i = $start; $i <= $end; $i++):
-                        ?>
-                            <li class="page-item <?php echo $i == $page ? 'active' : ''; ?>">
-                                <a class="page-link" href="?page=<?php echo $i; ?>&perPage=<?php echo $perPage; ?><?php echo http_build_query(array_diff_key($_GET, ['page' => '', 'perPage' => ''])) ? '&' . http_build_query(array_diff_key($_GET, ['page' => '', 'perPage' => ''])) : ''; ?>">
-                                    <?php echo $i; ?>
-                                </a>
-                            </li>
-                        <?php endfor; ?>
-
-                        <!-- Page suivante -->
-                        <li class="page-item <?php echo $page >= $totalPages ? 'disabled' : ''; ?>">
-                            <a class="page-link" href="?page=<?php echo min($totalPages, $page + 1); ?>&perPage=<?php echo $perPage; ?><?php echo http_build_query(array_diff_key($_GET, ['page' => '', 'perPage' => ''])) ? '&' . http_build_query(array_diff_key($_GET, ['page' => '', 'perPage' => ''])) : ''; ?>">
-                                <i class="bi bi-chevron-right"></i>
-                            </a>
-                        </li>
-
-                        <!-- Dernière page -->
-                        <li class="page-item <?php echo $page >= $totalPages ? 'disabled' : ''; ?>">
-                            <a class="page-link" href="?page=<?php echo $totalPages; ?>&perPage=<?php echo $perPage; ?><?php echo http_build_query(array_diff_key($_GET, ['page' => '', 'perPage' => ''])) ? '&' . http_build_query(array_diff_key($_GET, ['page' => '', 'perPage' => ''])) : ''; ?>">
-                                <i class="bi bi-chevron-bar-right"></i>
-                            </a>
-                        </li>
-                    </ul>
-                </nav>
-                <div class="text-center mt-2">
-                    <small class="text-muted">
-                        Page <?php echo $page; ?> sur <?php echo $totalPages; ?>
-                        (<?php echo number_format($total, 0, ',', ' '); ?> résultat(s))
-                    </small>
-                </div>
-            </div>
-        <?php endif; ?>
     </div>
 </div>
 
 <script>
-function changePerPage(value) {
-    const url = new URL(window.location.href);
-    url.searchParams.set('perPage', value);
-    url.searchParams.set('page', '1'); // Reset to first page
-    window.location.href = url.toString();
-}
+$(document).ready(function() {
+    // Initialiser DataTables avec tri par colonnes
+    $('#mouvementsTable').DataTable({
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/fr-FR.json'
+        },
+        pageLength: 25,
+        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Tous"]],
+        order: [[0, 'desc']], // Tri par date décroissant par défaut
+        columnDefs: [
+            {
+                targets: 3, // Colonne Opération
+                orderable: true
+            },
+            {
+                targets: 10, // Colonne Commentaire
+                orderable: false
+            }
+        ],
+        stateSave: true,
+        stateDuration: 60 * 60 * 24 * 7, // 7 jours
+        colReorder: true,
+        fixedHeader: true,
+        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"Bf>>' +
+             '<"row"<"col-sm-12"tr>>' +
+             '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+        buttons: [
+            {
+                extend: 'copy',
+                text: '<i class="bi bi-clipboard"></i> Copier',
+                className: 'btn btn-sm btn-secondary',
+                exportOptions: {
+                    columns: ':visible:not(:last-child)' // Exclure commentaire si trop long
+                }
+            },
+            {
+                extend: 'excel',
+                text: '<i class="bi bi-file-earmark-excel"></i> Excel',
+                className: 'btn btn-sm btn-success',
+                exportOptions: {
+                    columns: ':visible'
+                }
+            },
+            {
+                extend: 'pdf',
+                text: '<i class="bi bi-file-earmark-pdf"></i> PDF',
+                className: 'btn btn-sm btn-danger',
+                exportOptions: {
+                    columns: ':visible'
+                },
+                orientation: 'landscape',
+                pageSize: 'A4'
+            },
+            {
+                extend: 'print',
+                text: '<i class="bi bi-printer"></i> Imprimer',
+                className: 'btn btn-sm btn-info',
+                exportOptions: {
+                    columns: ':visible'
+                }
+            }
+        ]
+    });
+});
 </script>
 
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

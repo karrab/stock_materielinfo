@@ -222,6 +222,61 @@ class HistoriqueArticle {
     }
 
     /**
+     * Récupère tous les mouvements sans pagination (pour DataTables)
+     */
+    public function getAllWithoutPagination($filters = []) {
+        $sql = "SELECT h.*, u.nom as user_nom, u.prenom as user_prenom
+                FROM historique_article h
+                LEFT JOIN users u ON h.user_id = u.id
+                WHERE 1=1";
+
+        $params = [];
+
+        // Filtres
+        if (!empty($filters['code_article'])) {
+            $sql .= " AND h.code_article LIKE :code_article";
+            $params[':code_article'] = '%' . $filters['code_article'] . '%';
+        }
+
+        if (!empty($filters['designation'])) {
+            $sql .= " AND h.designation LIKE :designation";
+            $params[':designation'] = '%' . $filters['designation'] . '%';
+        }
+
+        if (!empty($filters['operation'])) {
+            $sql .= " AND h.operation = :operation";
+            $params[':operation'] = $filters['operation'];
+        }
+
+        if (!empty($filters['date_debut'])) {
+            $sql .= " AND DATE(h.date_operation) >= :date_debut";
+            $params[':date_debut'] = $filters['date_debut'];
+        }
+
+        if (!empty($filters['date_fin'])) {
+            $sql .= " AND DATE(h.date_operation) <= :date_fin";
+            $params[':date_fin'] = $filters['date_fin'];
+        }
+
+        if (!empty($filters['article_id'])) {
+            $sql .= " AND h.article_id = :article_id";
+            $params[':article_id'] = $filters['article_id'];
+        }
+
+        $sql .= " ORDER BY h.date_operation DESC, h.id DESC";
+
+        $conn = $this->db->getConnection();
+        $stmt = $conn->prepare($sql);
+
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
+
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
+    /**
      * Compte le nombre total de mouvements
      */
     public function count($filters = []) {
