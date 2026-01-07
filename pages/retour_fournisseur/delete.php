@@ -3,6 +3,7 @@ require_once __DIR__ . '/../../config/config.php';
 
 $auth = new Auth();
 $auth->requireLogin();
+$auth->requirePermission('retour_fournisseur', 'delete');
 
 $db = Database::getInstance();
 $retourFournisseur = new RetourFournisseur();

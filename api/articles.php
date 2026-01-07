@@ -41,6 +41,7 @@ $search = $_GET['search'] ?? $_GET['q'] ?? $_GET['term'] ?? '';
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $per_page = 20;
 $offset = ($page - 1) * $per_page;
+$stock_only = isset($_GET['stock_only']) && $_GET['stock_only'] == 1;
 
 // Construction de la requête
 $sql = "SELECT id, code_article, designation, qte_disponible, stock_min, stock_max
@@ -52,6 +53,11 @@ $params = [];
 if (!empty($search)) {
     $sql .= " AND (code_article LIKE :search OR designation LIKE :search)";
     $params[':search'] = '%' . $search . '%';
+}
+
+// Filtrer seulement les articles avec stock > 0 (pour retours fournisseur)
+if ($stock_only) {
+    $sql .= " AND qte_disponible > 0";
 }
 
 $sql .= " ORDER BY code_article ASC LIMIT :limit OFFSET :offset";

@@ -2,6 +2,7 @@
 $page_title = 'Nouveau retour fournisseur';
 require_once __DIR__ . '/../../includes/header.php';
 
+$auth->requirePermission('retour_fournisseur', 'create');
 $db = Database::getInstance();
 
 // Récupérer la liste des fournisseurs
@@ -309,14 +310,56 @@ function addArticleLine() {
 
     $('#articlesBody').append(row);
 
-    // Initialiser Select2 pour le nouvel article
+    // Initialiser Select2 pour le nouvel article avec filtrage stock > 0
     const selectId = '#article_' + articleLineCounter;
-    initArticleSelect(selectId);
+    initArticleSelectWithStock(selectId);
 
     // Événement lors de la sélection d'un article
     $(selectId).on('select2:select', function(e) {
         const data = e.params.data;
         $(this).closest('tr').find('.stock-disponible').text(formatNumber(data.qte_disponible));
+    });
+}
+
+// Fonction personnalisée pour charger seulement les articles avec stock > 0
+function initArticleSelectWithStock(selector) {
+    $(selector).select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Sélectionner un article...',
+        allowClear: true,
+        ajax: {
+            url: BASE_URL + '/api/articles.php',
+            dataType: 'json',
+            delay: 250,
+            data: function(params) {
+                return {
+                    search: params.term || '',
+                    stock_only: 1  // Filtrer seulement les articles avec stock > 0
+                };
+            },
+            processResults: function(data) {
+                if (!Array.isArray(data)) {
+                    console.error('API articles.php returned invalid data:', data);
+                    return { results: [] };
+                }
+                return { results: data };
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading articles:', error);
+            },
+            cache: true
+        },
+        minimumInputLength: 0,
+        templateResult: function(item) {
+            if (item.loading || !item.text) {
+                return item.text || item.id;
+            }
+            return item.text;
+        },
+        templateSelection: function(item) {
+            return item.text;
+        }
     });
 }
 

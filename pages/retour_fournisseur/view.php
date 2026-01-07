@@ -2,6 +2,7 @@
 $page_title = 'Détails retour fournisseur';
 require_once __DIR__ . '/../../includes/header.php';
 
+$auth->requirePermission('retour_fournisseur', 'view');
 $db = Database::getInstance();
 $retourFournisseur = new RetourFournisseur();
 
@@ -38,17 +39,23 @@ foreach ($retour['lignes'] as $ligne) {
                     </nav>
                 </div>
                 <div class="btn-group">
+                    <?php if ($auth->hasPermission('retour_fournisseur', 'pdf')): ?>
                     <a href="<?php echo BASE_URL; ?>/pages/retour_fournisseur/pdf.php?id=<?php echo $id; ?>" class="btn btn-secondary" target="_blank">
                         <i class="bi bi-file-pdf"></i> PDF
                     </a>
+                    <?php endif; ?>
+                    <?php if ($auth->hasPermission('retour_fournisseur', 'update')): ?>
                     <a href="<?php echo BASE_URL; ?>/pages/retour_fournisseur/edit.php?id=<?php echo $id; ?>" class="btn btn-warning">
                         <i class="bi bi-pencil"></i> Modifier
                     </a>
-                    <a href="<?php echo BASE_URL; ?>/pages/retour_fournisseur/delete.php?id=<?php echo $id; ?>" 
+                    <?php endif; ?>
+                    <?php if ($auth->hasPermission('retour_fournisseur', 'delete')): ?>
+                    <a href="<?php echo BASE_URL; ?>/pages/retour_fournisseur/delete.php?id=<?php echo $id; ?>"
                        class="btn btn-danger"
                        onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce retour fournisseur ?');">
                         <i class="bi bi-trash"></i> Supprimer
                     </a>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -221,17 +228,23 @@ foreach ($retour['lignes'] as $ligne) {
             <a href="<?php echo BASE_URL; ?>/pages/retour_fournisseur/index.php" class="btn btn-secondary">
                 <i class="bi bi-arrow-left"></i> Retour à la liste
             </a>
+            <?php if ($auth->hasPermission('retour_fournisseur', 'pdf')): ?>
             <a href="<?php echo BASE_URL; ?>/pages/retour_fournisseur/pdf.php?id=<?php echo $id; ?>" class="btn btn-secondary" target="_blank">
                 <i class="bi bi-file-pdf"></i> Générer PDF
             </a>
+            <?php endif; ?>
+            <?php if ($auth->hasPermission('retour_fournisseur', 'update')): ?>
             <a href="<?php echo BASE_URL; ?>/pages/retour_fournisseur/edit.php?id=<?php echo $id; ?>" class="btn btn-warning">
                 <i class="bi bi-pencil"></i> Modifier
             </a>
-            <a href="<?php echo BASE_URL; ?>/pages/retour_fournisseur/delete.php?id=<?php echo $id; ?>" 
+            <?php endif; ?>
+            <?php if ($auth->hasPermission('retour_fournisseur', 'delete')): ?>
+            <a href="<?php echo BASE_URL; ?>/pages/retour_fournisseur/delete.php?id=<?php echo $id; ?>"
                class="btn btn-danger"
                onclick="return confirm('Êtes-vous sûr de vouloir supprimer ce retour fournisseur ?');">
                 <i class="bi bi-trash"></i> Supprimer
             </a>
+            <?php endif; ?>
         </div>
     </div>
 </div>

@@ -2,6 +2,7 @@
 $page_title = 'Modifier retour fournisseur';
 require_once __DIR__ . '/../../includes/header.php';
 
+$auth->requirePermission('retour_fournisseur', 'update');
 $db = Database::getInstance();
 $retourFournisseur = new RetourFournisseur();
 

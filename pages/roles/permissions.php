@@ -87,6 +87,7 @@ $module_icons = [
     'entrees' => 'bi-box-arrow-in-down',
     'sorties' => 'bi-box-arrow-up',
     'retours' => 'bi-box-arrow-in-up',
+    'retour_fournisseur' => 'bi-box-arrow-left',
     'bureaux' => 'bi-door-open',
     'inventaires' => 'bi-clipboard-check',
     'users' => 'bi-person-circle',
@@ -105,7 +106,8 @@ $action_config = [
     'export' => ['icon' => 'bi-download', 'label' => 'Exporter'],
     'import' => ['icon' => 'bi-upload', 'label' => 'Importer'],
     'validate' => ['icon' => 'bi-check-circle', 'label' => 'Valider'],
-    'close' => ['icon' => 'bi-lock', 'label' => 'Clôturer']
+    'close' => ['icon' => 'bi-lock', 'label' => 'Clôturer'],
+    'pdf' => ['icon' => 'bi-file-pdf', 'label' => 'PDF']
 ];
 ?>
 
