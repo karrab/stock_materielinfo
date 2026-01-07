@@ -277,64 +277,39 @@ $stats = $historique->getStatistiques($date_debut ?: null, $date_fin ?: null);
 
 <script>
 $(document).ready(function() {
+    // Détruire toute instance DataTables existante
+    if ($.fn.DataTable.isDataTable('#mouvementsTable')) {
+        $('#mouvementsTable').DataTable().destroy();
+    }
+
     // Initialiser DataTables avec tri par colonnes
-    $('#mouvementsTable').DataTable({
+    var table = $('#mouvementsTable').DataTable({
         language: {
             url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/fr-FR.json'
         },
         pageLength: 50,
         lengthMenu: [[10, 50, 100, 200, 500, -1], [10, 50, 100, 200, 500, "Tous"]],
         order: [[0, 'desc']], // Tri par date décroissant par défaut
+        orderClasses: false, // Améliore les performances
+        processing: true,
+        deferRender: true,
         columnDefs: [
             {
-                targets: '_all', // Toutes les colonnes sont triables
+                targets: '_all',
                 orderable: true
             }
         ],
         stateSave: true,
         stateDuration: 60 * 60 * 24 * 7, // 7 jours
-        colReorder: true,
-        fixedHeader: true,
-        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"Bf>>' +
-             '<"row"<"col-sm-12"tr>>' +
-             '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
-        buttons: [
-            {
-                extend: 'copy',
-                text: '<i class="bi bi-clipboard"></i> Copier',
-                className: 'btn btn-sm btn-secondary',
-                exportOptions: {
-                    columns: ':visible'
-                }
-            },
-            {
-                extend: 'excel',
-                text: '<i class="bi bi-file-earmark-excel"></i> Excel',
-                className: 'btn btn-sm btn-success',
-                exportOptions: {
-                    columns: ':visible'
-                }
-            },
-            {
-                extend: 'pdf',
-                text: '<i class="bi bi-file-earmark-pdf"></i> PDF',
-                className: 'btn btn-sm btn-danger',
-                exportOptions: {
-                    columns: ':visible'
-                },
-                orientation: 'landscape',
-                pageSize: 'A4'
-            },
-            {
-                extend: 'print',
-                text: '<i class="bi bi-printer"></i> Imprimer',
-                className: 'btn btn-sm btn-info',
-                exportOptions: {
-                    columns: ':visible'
-                }
-            }
-        ]
+        initComplete: function() {
+            console.log('DataTables initialisé avec succès');
+        }
     });
+
+    // Vérifier que DataTables est bien initialisé
+    if (table) {
+        console.log('Table DataTables créée:', table.page.info());
+    }
 });
 </script>
 
