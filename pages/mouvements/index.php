@@ -275,42 +275,58 @@ $stats = $historique->getStatistiques($date_debut ?: null, $date_fin ?: null);
     </div>
 </div>
 
+<?php require_once __DIR__ . '/../../includes/footer.php'; ?>
+
 <script>
-$(document).ready(function() {
-    // Détruire toute instance DataTables existante
-    if ($.fn.DataTable.isDataTable('#mouvementsTable')) {
-        $('#mouvementsTable').DataTable().destroy();
-    }
-
-    // Initialiser DataTables avec tri par colonnes
-    var table = $('#mouvementsTable').DataTable({
-        language: {
-            url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/fr-FR.json'
-        },
-        pageLength: 50,
-        lengthMenu: [[10, 50, 100, 200, 500, -1], [10, 50, 100, 200, 500, "Tous"]],
-        order: [[0, 'desc']], // Tri par date décroissant par défaut
-        orderClasses: false, // Améliore les performances
-        processing: true,
-        deferRender: true,
-        columnDefs: [
-            {
-                targets: '_all',
-                orderable: true
-            }
-        ],
-        stateSave: true,
-        stateDuration: 60 * 60 * 24 * 7, // 7 jours
-        initComplete: function() {
-            console.log('DataTables initialisé avec succès');
+// Attendre que jQuery et DataTables soient chargés
+(function() {
+    function initDataTable() {
+        if (typeof jQuery === 'undefined' || typeof $.fn.DataTable === 'undefined') {
+            setTimeout(initDataTable, 100);
+            return;
         }
-    });
 
-    // Vérifier que DataTables est bien initialisé
-    if (table) {
-        console.log('Table DataTables créée:', table.page.info());
+        $(document).ready(function() {
+            // Détruire toute instance DataTables existante
+            if ($.fn.DataTable.isDataTable('#mouvementsTable')) {
+                $('#mouvementsTable').DataTable().destroy();
+            }
+
+            // Initialiser DataTables avec tri par colonnes
+            var table = $('#mouvementsTable').DataTable({
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/fr-FR.json'
+                },
+                pageLength: 50,
+                lengthMenu: [[10, 50, 100, 200, 500, -1], [10, 50, 100, 200, 500, "Tous"]],
+                order: [[0, 'desc']], // Tri par date décroissant par défaut
+                orderClasses: false, // Améliore les performances
+                processing: true,
+                deferRender: true,
+                columnDefs: [
+                    {
+                        targets: '_all',
+                        orderable: true
+                    }
+                ],
+                stateSave: true,
+                stateDuration: 60 * 60 * 24 * 7, // 7 jours
+                initComplete: function() {
+                    console.log('DataTables initialisé avec succès');
+                }
+            });
+
+            // Vérifier que DataTables est bien initialisé
+            if (table) {
+                console.log('Table DataTables créée:', table.page.info());
+            }
+        });
     }
-});
+
+    // Lancer l'initialisation
+    initDataTable();
+})();
 </script>
 
-<?php require_once __DIR__ . '/../../includes/footer.php'; ?>
+</body>
+</html>
