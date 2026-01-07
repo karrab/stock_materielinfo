@@ -169,6 +169,7 @@ $stats = $historique->getStatistiques($date_debut ?: null, $date_fin ?: null);
                             <th>Code Article</th>
                             <th>Désignation</th>
                             <th>Opération</th>
+                            <th class="text-end">Quantité_A</th>
                             <th class="text-end">Quantité</th>
                             <th class="text-end">Stock Avant</th>
                             <th class="text-end">Stock Après</th>
@@ -181,7 +182,7 @@ $stats = $historique->getStatistiques($date_debut ?: null, $date_fin ?: null);
                     <tbody>
                         <?php if (empty($mouvements)): ?>
                             <tr>
-                                <td colspan="11" class="text-center py-4">
+                                <td colspan="12" class="text-center py-4">
                                     <i class="bi bi-inbox"></i> Aucun mouvement trouvé
                                 </td>
                             </tr>
@@ -204,6 +205,21 @@ $stats = $historique->getStatistiques($date_debut ?: null, $date_fin ?: null);
                                             'retour_fournisseur' => '<span class="badge bg-warning text-dark"><i class="bi bi-box-arrow-left"></i> Retour Fournisseur</span>'
                                         ];
                                         echo $badges[$mouvement['operation']] ?? $mouvement['operation'];
+                                        ?>
+                                    </td>
+                                    <td class="text-end" data-order="<?php echo $mouvement['qte']; ?>">
+                                        <?php
+                                        // Colonne Quantité_A : afficher le type de quantité selon l'opération
+                                        $qte_value = number_format($mouvement['qte'], 2, ',', ' ');
+                                        if ($mouvement['operation'] === 'entree') {
+                                            echo '<span class="text-success"><strong>Qté Entrée:</strong> ' . $qte_value . '</span>';
+                                        } elseif ($mouvement['operation'] === 'sortie') {
+                                            echo '<span class="text-danger"><strong>Qté Sortie:</strong> ' . $qte_value . '</span>';
+                                        } elseif ($mouvement['operation'] === 'retour') {
+                                            echo '<span class="text-info"><strong>Qté Retour Employé:</strong> ' . $qte_value . '</span>';
+                                        } elseif ($mouvement['operation'] === 'retour_fournisseur') {
+                                            echo '<span class="text-warning"><strong>Qté Retour Fournisseur:</strong> ' . $qte_value . '</span>';
+                                        }
                                         ?>
                                     </td>
                                     <td class="text-end" data-order="<?php echo $mouvement['qte']; ?>">
@@ -266,17 +282,13 @@ $(document).ready(function() {
         language: {
             url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/fr-FR.json'
         },
-        pageLength: 25,
-        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Tous"]],
+        pageLength: 50,
+        lengthMenu: [[10, 50, 100, 200, 500, -1], [10, 50, 100, 200, 500, "Tous"]],
         order: [[0, 'desc']], // Tri par date décroissant par défaut
         columnDefs: [
             {
-                targets: 3, // Colonne Opération
+                targets: '_all', // Toutes les colonnes sont triables
                 orderable: true
-            },
-            {
-                targets: 10, // Colonne Commentaire
-                orderable: false
             }
         ],
         stateSave: true,
@@ -292,7 +304,7 @@ $(document).ready(function() {
                 text: '<i class="bi bi-clipboard"></i> Copier',
                 className: 'btn btn-sm btn-secondary',
                 exportOptions: {
-                    columns: ':visible:not(:last-child)' // Exclure commentaire si trop long
+                    columns: ':visible'
                 }
             },
             {
