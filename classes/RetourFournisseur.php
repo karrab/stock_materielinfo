@@ -103,7 +103,6 @@ class RetourFournisseur {
     public function getById($id) {
         $sql = "SELECT rf.*, f.nom_complet as fournisseur, f.adresse as fournisseur_adresse,
                        f.ville as fournisseur_ville, f.tel1 as fournisseur_tel,
-                       f.email as fournisseur_email,
                        u.nom as user_nom, u.prenom as user_prenom
                 FROM retour_fournisseur rf
                 INNER JOIN fournisseurs f ON rf.fournisseur_id = f.id

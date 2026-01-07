@@ -458,7 +458,7 @@ class PDF {
     public function generateBonEntree($entree_id) {
         // Récupérer les données
         $sql = "SELECT e.*, f.nom_complet as fournisseur, f.adresse as fournisseur_adresse,
-                       f.ville, f.tel1, f.email as fournisseur_email,
+                       f.ville, f.tel1,
                        u.nom as user_nom, u.prenom as user_prenom
                 FROM entrees e
                 INNER JOIN fournisseurs f ON e.fournisseur_id = f.id
@@ -496,9 +496,6 @@ class PDF {
                 <div class="row">
                     <div class="col">
                         <div><span class="label">📞 Téléphone:</span> <span class="value">' . htmlspecialchars($entree['tel1'] ?? '-') . '</span></div>
-                    </div>
-                    <div class="col">
-                        <div><span class="label">✉️ Email:</span> <span class="value">' . htmlspecialchars($entree['fournisseur_email'] ?? '-') . '</span></div>
                     </div>
                 </div>
             </div>
@@ -718,7 +715,7 @@ class PDF {
     public function generateBonRetourFournisseur($retour_id) {
         // Récupérer les données du retour
         $sql = "SELECT rf.*, f.nom_complet as fournisseur, f.adresse as fournisseur_adresse,
-                       f.ville, f.tel1, f.email as fournisseur_email,
+                       f.ville, f.tel1,
                        u.nom as user_nom, u.prenom as user_prenom
                 FROM retour_fournisseur rf
                 INNER JOIN fournisseurs f ON rf.fournisseur_id = f.id
@@ -768,7 +765,6 @@ class PDF {
                     <td width="50%">
                         <div><span class="label">📅 Date retour:</span> <span class="value">' . date('d/m/Y', strtotime($retour['date'])) . '</span></div>
                         ' . (!empty($retour['tel1']) ? '<div><span class="label">📞 Téléphone:</span> <span class="value">' . htmlspecialchars($retour['tel1']) . '</span></div>' : '') . '
-                        ' . (!empty($retour['fournisseur_email']) ? '<div><span class="label">✉️ Email:</span> <span class="value">' . htmlspecialchars($retour['fournisseur_email']) . '</span></div>' : '') . '
                         <div><span class="label">👤 Créé par:</span> <span class="value">' . htmlspecialchars($retour['user_nom'] . ' ' . $retour['user_prenom']) . '</span></div>
                     </td>
                 </tr>

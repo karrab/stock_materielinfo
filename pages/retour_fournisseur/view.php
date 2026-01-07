@@ -127,12 +127,6 @@ foreach ($retour['lignes'] as $ligne) {
                             <td><i class="bi bi-telephone"></i> <?php echo htmlspecialchars($retour['fournisseur_tel']); ?></td>
                         </tr>
                         <?php endif; ?>
-                        <?php if (!empty($retour['fournisseur_email'])): ?>
-                        <tr>
-                            <th>Email:</th>
-                            <td><i class="bi bi-envelope"></i> <a href="mailto:<?php echo htmlspecialchars($retour['fournisseur_email']); ?>"><?php echo htmlspecialchars($retour['fournisseur_email']); ?></a></td>
-                        </tr>
-                        <?php endif; ?>
                     </table>
                 </div>
             </div>
