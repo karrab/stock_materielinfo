@@ -433,6 +433,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             const date = new Date(dateStr);
             return date.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' });
         }
+
+        function formatNumber(number) {
+            return parseFloat(number).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
     }
 
     // Lancer l'initialisation
