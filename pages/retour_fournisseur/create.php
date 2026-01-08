@@ -382,50 +382,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         function loadLastEntree(fournisseurId) {
-            $.ajax({
-                url: BASE_URL + '/api/last_entree_articles.php',
-                data: { fournisseur_id: fournisseurId },
-                dataType: 'json',
-                cache: false,
-                beforeSend: function() {
-                    $('#lastEntreeContent').html('<p class="text-center"><i class="bi bi-hourglass-split"></i> Chargement...</p>');
-                    $('#lastEntreeCard').show();
-                },
-                success: function(response) {
-                    if (response.success && response.articles && response.articles.length > 0) {
-                        let html = '<p class="mb-2"><small class="text-muted">Date: ' + formatDate(response.entree.date) + '</small></p>';
-                        html += '<div class="table-responsive">';
-                        html += '<table class="table table-sm table-bordered mb-0">';
-                        html += '<thead class="table-light">';
-                        html += '<tr>';
-                        html += '<th>Article</th>';
-                        html += '<th class="text-end">Qté entrée</th>';
-                        html += '<th class="text-end">Stock actuel</th>';
-                        html += '</tr>';
-                        html += '</thead>';
-                        html += '<tbody>';
+            // Afficher le loading
+            $('#lastEntreeContent').html('<p class="text-center"><i class="bi bi-hourglass-split"></i> Chargement...</p>');
+            $('#lastEntreeCard').show();
 
-                        response.articles.forEach(function(article) {
-                            html += '<tr>';
-                            html += '<td><small><strong>' + article.code_article + '</strong><br>' + article.designation + '</small></td>';
-                            html += '<td class="text-end"><span class="badge bg-success">' + formatNumber(article.qte_entree) + '</span></td>';
-                            html += '<td class="text-end"><span class="badge bg-info">' + formatNumber(article.stock_actuel) + '</span></td>';
-                            html += '</tr>';
-                        });
-
-                        html += '</tbody>';
-                        html += '</table>';
-                        html += '</div>';
-                        html += '<p class="mt-2 mb-0"><small class="text-muted"><i class="bi bi-info-circle"></i> Articles de la dernière entrée</small></p>';
-
-                        $('#lastEntreeContent').html(html);
-                    } else {
-                        $('#lastEntreeContent').html('<p class="text-muted text-center mb-0"><i class="bi bi-inbox"></i><br>Aucune entrée trouvée pour ce fournisseur</p>');
-                    }
-                },
-                error: function(xhr, status, error) {
+            // Utiliser la fonction globale de main.js
+            loadLastEntreeFournisseur(fournisseurId, function(error, response) {
+                if (error) {
                     $('#lastEntreeContent').html('<p class="text-danger text-center mb-0"><i class="bi bi-exclamation-triangle"></i><br>Erreur lors du chargement</p>');
-                    console.error('Erreur AJAX:', error);
+                    console.error('Erreur chargement dernière entrée:', error);
+                    return;
+                }
+
+                if (response.success && response.articles && response.articles.length > 0) {
+                    let html = '<p class="mb-2"><small class="text-muted">Date: ' + formatDate(response.entree.date) + '</small></p>';
+                    html += '<div class="table-responsive">';
+                    html += '<table class="table table-sm table-bordered mb-0">';
+                    html += '<thead class="table-light">';
+                    html += '<tr>';
+                    html += '<th>Article</th>';
+                    html += '<th class="text-end">Qté entrée</th>';
+                    html += '<th class="text-end">Stock actuel</th>';
+                    html += '</tr>';
+                    html += '</thead>';
+                    html += '<tbody>';
+
+                    response.articles.forEach(function(article) {
+                        html += '<tr>';
+                        html += '<td><small><strong>' + article.code_article + '</strong><br>' + article.designation + '</small></td>';
+                        html += '<td class="text-end"><span class="badge bg-success">' + formatNumber(article.qte_entree) + '</span></td>';
+                        html += '<td class="text-end"><span class="badge bg-info">' + formatNumber(article.stock_actuel) + '</span></td>';
+                        html += '</tr>';
+                    });
+
+                    html += '</tbody>';
+                    html += '</table>';
+                    html += '</div>';
+                    html += '<p class="mt-2 mb-0"><small class="text-muted"><i class="bi bi-info-circle"></i> Articles de la dernière entrée</small></p>';
+
+                    $('#lastEntreeContent').html(html);
+                } else {
+                    $('#lastEntreeContent').html('<p class="text-muted text-center mb-0"><i class="bi bi-inbox"></i><br>Aucune entrée trouvée pour ce fournisseur</p>');
                 }
             });
         }

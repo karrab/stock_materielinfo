@@ -303,6 +303,30 @@ function initFournisseurSelect(selector, placeholder = 'Sélectionner un fournis
     });
 }
 
+// Chargement de la dernière entrée d'un fournisseur
+function loadLastEntreeFournisseur(fournisseurId, callback) {
+    $.ajax({
+        url: BASE_URL + '/api/last_entree_articles.php',
+        method: 'GET',
+        data: { fournisseur_id: fournisseurId },
+        dataType: 'json',
+        cache: false,
+        success: function(response) {
+            if (typeof callback === 'function') {
+                callback(null, response);
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error loading last entree:', error);
+            console.error('Status:', status);
+            console.error('XHR:', xhr);
+            if (typeof callback === 'function') {
+                callback(error, null);
+            }
+        }
+    });
+}
+
 // Initialisation Select2 pour sélection service
 function initServiceSelect(selector, placeholder = 'Sélectionner un service...') {
     $(selector).select2({
