@@ -382,12 +382,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         function loadLastEntree(fournisseurId) {
+            console.log('loadLastEntree appelée avec fournisseurId:', fournisseurId);
+
+            // Vérifier que la fonction globale existe
+            if (typeof loadLastEntreeFournisseur !== 'function') {
+                console.error('loadLastEntreeFournisseur n\'est pas disponible dans main.js');
+                $('#lastEntreeContent').html('<p class="text-danger text-center mb-0"><i class="bi bi-exclamation-triangle"></i><br>Erreur: fonction non disponible</p>');
+                $('#lastEntreeCard').show();
+                return;
+            }
+
             // Afficher le loading
             $('#lastEntreeContent').html('<p class="text-center"><i class="bi bi-hourglass-split"></i> Chargement...</p>');
             $('#lastEntreeCard').show();
 
             // Utiliser la fonction globale de main.js
             loadLastEntreeFournisseur(fournisseurId, function(error, response) {
+                console.log('Callback reçu - error:', error, 'response:', response);
+
                 if (error) {
                     $('#lastEntreeContent').html('<p class="text-danger text-center mb-0"><i class="bi bi-exclamation-triangle"></i><br>Erreur lors du chargement</p>');
                     console.error('Erreur chargement dernière entrée:', error);
@@ -395,6 +407,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 if (response.success && response.articles && response.articles.length > 0) {
+                    console.log('Articles trouvés:', response.articles.length);
                     let html = '<p class="mb-2"><small class="text-muted">Date: ' + formatDate(response.entree.date) + '</small></p>';
                     html += '<div class="table-responsive">';
                     html += '<table class="table table-sm table-bordered mb-0">';
@@ -422,6 +435,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     $('#lastEntreeContent').html(html);
                 } else {
+                    console.log('Aucun article trouvé');
                     $('#lastEntreeContent').html('<p class="text-muted text-center mb-0"><i class="bi bi-inbox"></i><br>Aucune entrée trouvée pour ce fournisseur</p>');
                 }
             });
