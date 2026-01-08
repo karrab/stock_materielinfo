@@ -267,10 +267,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
 
 <script>
-// Attendre que jQuery soit chargé
+// Attendre que jQuery et BASE_URL soient chargés
 (function() {
     function initPage() {
-        if (typeof jQuery === 'undefined') {
+        if (typeof jQuery === 'undefined' || typeof BASE_URL === 'undefined') {
             setTimeout(initPage, 100);
             return;
         }
