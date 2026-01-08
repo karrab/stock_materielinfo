@@ -13,7 +13,7 @@ define('DB_CHARSET', 'utf8mb4');
 // Configuration de l'application
 define('APP_NAME', 'Gestion Stock Matériel');
 define('APP_VERSION', '1.0.0');
-define('BASE_URL', 'http://localhost/stock_materielinfo');
+define('BASE_URL', 'http://localhost/stock_manager');
 define('SITE_URL', BASE_URL);
 
 // Chemins
