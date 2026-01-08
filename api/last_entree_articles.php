@@ -22,6 +22,7 @@ try {
                   ORDER BY date DESC, id DESC
                   LIMIT 1");
     $db->bind(':fournisseur_id', $fournisseur_id);
+    $db->execute();
     $lastEntree = $db->fetch();
 
     if (!$lastEntree) {
@@ -42,6 +43,7 @@ try {
                   WHERE le.entree_id = :entree_id
                   ORDER BY le.id");
     $db->bind(':entree_id', $lastEntree['id']);
+    $db->execute();
     $articles = $db->fetchAll();
 
     echo json_encode([
