@@ -386,6 +386,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 url: BASE_URL + '/api/last_entree_articles.php',
                 data: { fournisseur_id: fournisseurId },
                 dataType: 'json',
+                cache: false,
                 beforeSend: function() {
                     $('#lastEntreeContent').html('<p class="text-center"><i class="bi bi-hourglass-split"></i> Chargement...</p>');
                     $('#lastEntreeCard').show();
