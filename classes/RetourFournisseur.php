@@ -341,11 +341,23 @@ class RetourFournisseur {
         try {
             $this->db->beginTransaction();
 
+            // Récupérer les infos du retour pour l'historique
+            $this->db->prepare("SELECT user_id, date FROM retour_fournisseur WHERE id = :id");
+            $this->db->bind(':id', $id);
+            $this->db->execute();
+            $retour = $this->db->fetch();
+
+            if (!$retour) {
+                throw new Exception("Retour fournisseur introuvable");
+            }
+
             // Récupérer les lignes pour restaurer les stocks
             $lignes = $this->getLignesByRetourId($id);
+            $historique = new HistoriqueArticle();
 
-            // Restaurer les stocks
+            // Restaurer les stocks et enregistrer l'annulation dans l'historique
             foreach ($lignes as $ligne) {
+                // Restaurer le stock (AUGMENTATION car on annule le retour)
                 $sql = "UPDATE articles
                         SET qte_disponible = qte_disponible + :qte
                         WHERE id = :article_id";
@@ -354,9 +366,25 @@ class RetourFournisseur {
                 $this->db->bind(':qte', $ligne['qte']);
                 $this->db->bind(':article_id', $ligne['article_id']);
                 $this->db->execute();
+
+                // Enregistrer l'annulation dans l'historique
+                $stock_avant = $this->getStockActuel($ligne['article_id']) - $ligne['qte'];
+                $stock_apres = $stock_avant + $ligne['qte'];
+
+                $historique->enregistrerMouvement([
+                    'article_id' => $ligne['article_id'],
+                    'operation' => 'retour_fournisseur',
+                    'qte' => -$ligne['qte'], // Quantité négative pour indiquer l'annulation
+                    'stock_avant_operation' => $stock_avant,
+                    'stock_apres_operation' => $stock_apres,
+                    'retour_fournisseur_id' => null, // NULL car retour supprimé
+                    'user_id' => $retour['user_id'],
+                    'date_operation' => date('Y-m-d'),
+                    'commentaire' => "Annulation retour fournisseur #$id (supprimé)"
+                ]);
             }
 
-            // Supprimer de l'historique
+            // Supprimer les anciens mouvements de l'historique
             $this->db->prepare("DELETE FROM historique_article WHERE retour_fournisseur_id = :id");
             $this->db->bind(':id', $id);
             $this->db->execute();

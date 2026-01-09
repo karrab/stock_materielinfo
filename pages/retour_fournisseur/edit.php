@@ -17,6 +17,7 @@ if (!$retour) {
 
 // Récupérer la liste des fournisseurs
 $db->prepare("SELECT id, nom_complet FROM fournisseurs ORDER BY nom_complet");
+$db->execute();
 $fournisseurs = $db->fetchAll();
 
 // Traitement du formulaire
@@ -59,6 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                               WHERE a.id = :id");
                 $db->bind(':retour_id', $id);
                 $db->bind(':id', $article_id);
+                $db->execute();
                 $article = $db->fetch();
 
                 if (!$article) {
