@@ -269,153 +269,144 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
 
 <script>
-// Attendre que jQuery et BASE_URL soient chargés
-(function() {
-    function initPage() {
-        if (typeof jQuery === 'undefined' || typeof BASE_URL === 'undefined') {
-            setTimeout(initPage, 100);
+let articleLineCounter = 0;
+
+$(document).ready(function() {
+    // Fonction pour formater la date
+    function formatDate(dateStr) {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('fr-FR', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    }
+
+    // Fonction pour formater les nombres
+    function formatNumber(number) {
+        return parseFloat(number).toLocaleString('fr-FR', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    // Ajouter une ligne d'article
+    window.addArticleLine = function() {
+        articleLineCounter++;
+
+        const row = `
+            <tr id="articleLine${articleLineCounter}">
+                <td>
+                    <select class="form-select article-select" name="article_id[]" id="article_${articleLineCounter}" required>
+                        <option value="">Sélectionner un article...</option>
+                    </select>
+                </td>
+                <td>
+                    <input type="number" class="form-control" name="quantite[]" min="0.01" step="0.01" required>
+                </td>
+                <td>
+                    <span class="stock-disponible badge bg-info">-</span>
+                </td>
+                <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-danger" onclick="removeArticleLine(${articleLineCounter})">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+
+        $('#articlesBody').append(row);
+
+        // Initialiser Select2 pour le nouvel article
+        $(`#article_${articleLineCounter}`).select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Rechercher un article...',
+            allowClear: true,
+            ajax: {
+                url: BASE_URL + '/api/articles.php',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        search: params.term || '',
+                        stock_only: 1
+                    };
+                },
+                processResults: function(data) {
+                    if (!Array.isArray(data)) {
+                        console.error('Données invalides:', data);
+                        return { results: [] };
+                    }
+                    return { results: data };
+                },
+                cache: false
+            },
+            minimumInputLength: 0,
+            language: {
+                inputTooShort: function() {
+                    return 'Tapez pour rechercher...';
+                },
+                noResults: function() {
+                    return 'Aucun article trouvé';
+                },
+                searching: function() {
+                    return 'Recherche...';
+                }
+            }
+        }).on('select2:select', function(e) {
+            const data = e.params.data;
+            if (data.qte_disponible) {
+                $(this).closest('tr').find('.stock-disponible')
+                    .text(formatNumber(data.qte_disponible));
+            }
+        });
+    }
+
+    // Supprimer une ligne d'article
+    window.removeArticleLine = function(lineId) {
+        if ($('#articlesBody tr').length > 1) {
+            $(`#articleLine${lineId}`).remove();
+        } else {
+            alert('Vous devez avoir au moins un article.');
+        }
+    }
+
+    // Charger la dernière entrée du fournisseur
+    function loadLastEntree(fournisseurId) {
+        if (!fournisseurId) {
+            $('#lastEntreeCard').hide();
             return;
         }
 
-        let articleLineCounter = 0;
+        $('#lastEntreeContent').html(`
+            <div class="text-center">
+                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                    <span class="visually-hidden">Chargement...</span>
+                </div>
+                <p class="mt-2 mb-0">Chargement de la dernière entrée...</p>
+            </div>
+        `);
+        $('#lastEntreeCard').show();
 
-        $(document).ready(function() {
-            // Ajouter une première ligne d'article
-            addArticleLine();
-
-            // Écouter le changement de fournisseur
-            $('#fournisseur_id').on('change', function() {
-                const fournisseurId = $(this).val();
-
-                if (fournisseurId) {
-                    loadLastEntree(fournisseurId);
-                } else {
-                    // Cacher la card si aucun fournisseur sélectionné
-                    $('#lastEntreeCard').hide();
-                }
-            });
-        });
-
-        function addArticleLine() {
-            articleLineCounter++;
-
-            const row = `
-                <tr id="articleLine${articleLineCounter}">
-                    <td>
-                        <select class="form-select article-select" name="article_id[]" id="article_${articleLineCounter}" required>
-                            <option value="">Sélectionner un article...</option>
-                        </select>
-                    </td>
-                    <td>
-                        <input type="number" class="form-control" name="quantite[]" min="0.01" step="0.01" required>
-                    </td>
-                    <td>
-                        <span class="stock-disponible badge bg-info">-</span>
-                    </td>
-                    <td class="text-center">
-                        <button type="button" class="btn btn-sm btn-danger" onclick="removeArticleLine(${articleLineCounter})">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
-
-            $('#articlesBody').append(row);
-
-            // Initialiser Select2 pour le nouvel article avec filtrage stock > 0
-            const selectId = '#article_' + articleLineCounter;
-            initArticleSelectWithStock(selectId);
-
-            // Événement lors de la sélection d'un article
-            $(selectId).on('select2:select', function(e) {
-                const data = e.params.data;
-                $(this).closest('tr').find('.stock-disponible').text(formatNumber(data.qte_disponible));
-            });
-        }
-
-        // Fonction personnalisée pour charger seulement les articles avec stock > 0
-        function initArticleSelectWithStock(selector) {
-            $(selector).select2({
-                theme: 'bootstrap-5',
-                width: '100%',
-                placeholder: 'Sélectionner un article...',
-                allowClear: true,
-                ajax: {
-                    url: BASE_URL + '/api/articles.php',
-                    dataType: 'json',
-                    delay: 250,
-                    data: function(params) {
-                        return {
-                            search: params.term || '',
-                            stock_only: 1  // Filtrer seulement les articles avec stock > 0
-                        };
-                    },
-                    processResults: function(data) {
-                        if (!Array.isArray(data)) {
-                            console.error('API articles.php returned invalid data:', data);
-                            return { results: [] };
-                        }
-                        return { results: data };
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('Error loading articles:', error);
-                    },
-                    cache: true
-                },
-                minimumInputLength: 0,
-                templateResult: function(item) {
-                    if (item.loading || !item.text) {
-                        return item.text || item.id;
-                    }
-                    return item.text;
-                },
-                templateSelection: function(item) {
-                    return item.text;
-                }
-            });
-        }
-
-        window.removeArticleLine = function(lineId) {
-            if ($('#articlesBody tr').length > 1) {
-                $('#articleLine' + lineId).remove();
-            } else {
-                alert('Vous devez avoir au moins un article.');
-            }
-        }
-
-        function loadLastEntree(fournisseurId) {
-            console.log('loadLastEntree appelée avec fournisseurId:', fournisseurId);
-
-            // Vérifier que la fonction globale existe
-            if (typeof loadLastEntreeFournisseur !== 'function') {
-                console.error('loadLastEntreeFournisseur n\'est pas disponible dans main.js');
-                $('#lastEntreeContent').html('<p class="text-danger text-center mb-0"><i class="bi bi-exclamation-triangle"></i><br>Erreur: fonction non disponible</p>');
-                $('#lastEntreeCard').show();
-                return;
-            }
-
-            // Afficher le loading
-            $('#lastEntreeContent').html('<p class="text-center"><i class="bi bi-hourglass-split"></i> Chargement...</p>');
-            $('#lastEntreeCard').show();
-
-            // Utiliser la fonction globale de main.js
-            loadLastEntreeFournisseur(fournisseurId, function(error, response) {
-                console.log('Callback reçu - error:', error, 'response:', response);
-
-                if (error) {
-                    $('#lastEntreeContent').html('<p class="text-danger text-center mb-0"><i class="bi bi-exclamation-triangle"></i><br>Erreur lors du chargement</p>');
-                    console.error('Erreur chargement dernière entrée:', error);
-                    return;
-                }
-
+        $.ajax({
+            url: BASE_URL + '/api/last_entree_articles.php',
+            method: 'GET',
+            data: {
+                fournisseur_id: fournisseurId,
+                _t: new Date().getTime()
+            },
+            dataType: 'json',
+            cache: false,
+            success: function(response) {
                 if (response.success && response.articles && response.articles.length > 0) {
-                    console.log('Articles trouvés:', response.articles.length);
-                    let html = '<p class="mb-2"><small class="text-muted">Date: ' + formatDate(response.entree.date) + '</small></p>';
+                    let html = `<p class="mb-2"><small class="text-muted">Date: ${formatDate(response.entree.date)}</small></p>`;
                     html += '<div class="table-responsive">';
                     html += '<table class="table table-sm table-bordered mb-0">';
                     html += '<thead class="table-light">';
                     html += '<tr>';
-                    html += '<th>Article</th>';
+                    html += '<th>Code</th>';
+                    html += '<th>Désignation</th>';
                     html += '<th class="text-end">Qté entrée</th>';
                     html += '<th class="text-end">Stock actuel</th>';
                     html += '</tr>';
@@ -424,9 +415,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     response.articles.forEach(function(article) {
                         html += '<tr>';
-                        html += '<td><small><strong>' + article.code_article + '</strong><br>' + article.designation + '</small></td>';
-                        html += '<td class="text-end"><span class="badge bg-success">' + formatNumber(article.qte_entree) + '</span></td>';
-                        html += '<td class="text-end"><span class="badge bg-info">' + formatNumber(article.stock_actuel) + '</span></td>';
+                        html += `<td><small><strong>${article.code_article}</strong></small></td>`;
+                        html += `<td><small>${article.designation}</small></td>`;
+                        html += `<td class="text-end"><span class="badge bg-success">${formatNumber(article.qte_entree)}</span></td>`;
+                        html += `<td class="text-end"><span class="badge bg-info">${formatNumber(article.stock_actuel)}</span></td>`;
                         html += '</tr>';
                     });
 
@@ -437,25 +429,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     $('#lastEntreeContent').html(html);
                 } else {
-                    console.log('Aucun article trouvé');
-                    $('#lastEntreeContent').html('<p class="text-muted text-center mb-0"><i class="bi bi-inbox"></i><br>Aucune entrée trouvée pour ce fournisseur</p>');
+                    $('#lastEntreeContent').html(`
+                        <p class="text-muted text-center mb-0">
+                            <i class="bi bi-inbox"></i><br>
+                            Aucune entrée trouvée pour ce fournisseur
+                        </p>
+                    `);
                 }
-            });
-        }
-
-        function formatDate(dateStr) {
-            const date = new Date(dateStr);
-            return date.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' });
-        }
-
-        function formatNumber(number) {
-            return parseFloat(number).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
+            },
+            error: function(xhr, status, error) {
+                console.error('Erreur:', error);
+                $('#lastEntreeContent').html(`
+                    <p class="text-danger text-center mb-0">
+                        <i class="bi bi-exclamation-triangle"></i><br>
+                        Erreur lors du chargement
+                    </p>
+                `);
+            }
+        });
     }
 
-    // Lancer l'initialisation
-    initPage();
-})();
+    // Événement lors du changement de fournisseur
+    $('#fournisseur_id').on('change', function() {
+        const fournisseurId = $(this).val();
+        loadLastEntree(fournisseurId);
+    });
+
+    // Événement pour le formulaire
+    $('#retourForm').on('submit', function(e) {
+        // Vérifier qu'il y a au moins un article
+        const articleCount = $('#articlesBody select[name="article_id[]"]').filter(function() {
+            return $(this).val() !== '';
+        }).length;
+
+        if (articleCount === 0) {
+            e.preventDefault();
+            alert('Veuillez ajouter au moins un article.');
+            return false;
+        }
+
+        // Vérifier les quantités
+        let hasError = false;
+        $('input[name="quantite[]"]').each(function() {
+            const qte = parseFloat($(this).val());
+            const stockSpan = $(this).closest('tr').find('.stock-disponible');
+            const stockText = stockSpan.text();
+
+            if (stockText !== '-' && !isNaN(qte)) {
+                const stock = parseFloat(stockText.replace(/\s/g, '').replace(',', '.'));
+                if (qte > stock) {
+                    hasError = true;
+                    $(this).addClass('is-invalid');
+                    stockSpan.addClass('bg-danger').removeClass('bg-info');
+                } else {
+                    $(this).removeClass('is-invalid');
+                    stockSpan.removeClass('bg-danger').addClass('bg-info');
+                }
+            }
+        });
+
+        if (hasError) {
+            e.preventDefault();
+            alert('Certaines quantités dépassent le stock disponible. Veuillez corriger.');
+            return false;
+        }
+    });
+
+    // Ajouter la première ligne d'article
+    addArticleLine();
+});
 </script>
 
 </body>
