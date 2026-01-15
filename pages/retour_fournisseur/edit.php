@@ -247,6 +247,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 let articleLineCounter = 0;
 const existingArticles = <?php echo json_encode($retour['lignes']); ?>;
 
+// Format number helper
+function formatNumber(number) {
+    return parseFloat(number).toLocaleString('fr-FR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
 $(document).ready(function() {
     // Charger les lignes existantes
     existingArticles.forEach(function(ligne) {
@@ -257,7 +265,64 @@ $(document).ready(function() {
     if (existingArticles.length === 0) {
         addArticleLine();
     }
+
+    // Écouteur pour changement de fournisseur
+    $('#fournisseur_id').on('change', function() {
+        const fournisseurId = $(this).val();
+
+        if (fournisseurId) {
+            // Charger la dernière entrée du fournisseur sélectionné
+            loadLastEntreeFournisseur(fournisseurId, function(error, response) {
+                if (error) {
+                    console.error('Erreur lors du chargement de la dernière entrée:', error);
+                    return;
+                }
+
+                if (response && response.success && response.articles && response.articles.length > 0) {
+                    console.log('Articles de la dernière entrée chargés:', response.articles);
+
+                    // Ajouter les articles aux selects
+                    response.articles.forEach(function(article) {
+                        addArticleToAllSelects(article);
+                    });
+                }
+            });
+        }
+    });
 });
+
+// Ajoute un article à tous les selects vides (ne modifie PAS les selects avec valeur existante)
+function addArticleToAllSelects(article) {
+    $('.article-select').each(function() {
+        const select = $(this);
+        const currentValue = select.val();
+
+        // NE PAS modifier les selects qui ont déjà une valeur sélectionnée
+        // Cela préserve les désignations des articles déjà retournés
+        if (currentValue && currentValue !== '' && currentValue !== '0') {
+            return; // Skip ce select
+        }
+
+        const articleId = article.id;
+
+        // Vérifier si l'article n'est pas déjà dans la liste
+        if (select.find(`option[value="${articleId}"]`).length === 0) {
+            const option = new Option(
+                `${article.code_article} - ${article.designation}`,
+                articleId,
+                false,
+                false
+            );
+            option.setAttribute('data-qte_disponible', article.stock_actuel);
+            select.append(option);
+
+            // Rafraîchir Select2 si initialisé
+            if (select.hasClass('select2-hidden-accessible')) {
+                select.trigger('change');
+            }
+        }
+    });
+}
 
 function addArticleLine(existingData = null) {
     articleLineCounter++;
@@ -270,7 +335,7 @@ function addArticleLine(existingData = null) {
                 </select>
             </td>
             <td>
-                <input type="number" class="form-control" name="quantite[]" min="0.01" step="0.01" 
+                <input type="number" class="form-control" name="quantite[]" min="0.01" step="0.01"
                        value="${existingData ? existingData.qte : ''}" required>
             </td>
             <td>
