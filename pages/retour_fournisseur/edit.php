@@ -287,12 +287,14 @@ function addArticleLine(existingData = null) {
     $('#articlesBody').append(row);
 
     const selectId = '#article_' + articleLineCounter;
-    initArticleSelect(selectId);
 
-    // Si données existantes, sélectionner l'article
+    // Si données existantes, ajouter l'option AVANT d'initialiser Select2
     if (existingData) {
         $(selectId).append(new Option(existingData.code_article + ' - ' + existingData.designation, existingData.article_id, true, true));
     }
+
+    // Initialiser Select2 APRÈS avoir ajouté les options existantes
+    initArticleSelect(selectId);
 
     $(selectId).on('select2:select', function(e) {
         const data = e.params.data;
